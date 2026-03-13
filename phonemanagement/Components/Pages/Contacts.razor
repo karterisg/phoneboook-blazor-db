@@ -1,0 +1,32 @@
+﻿@page "/contacts"
+@using PhoneBookApp.Models
+
+<h3>Phone Directory</h3>
+
+<a href="/add-contact">Add Contact</a>
+
+<ul>
+@foreach(var contact in contacts)
+{
+    <li>
+        @contact.Name - @contact.Phone
+
+            <a class="btn btn-sm btn-warning me-2" href="/edit-contact/@contact.Id">Edit</a>
+
+            <form method="post" action="/delete-contact" style="display:inline;">
+                <input type="hidden" name="id" value="@contact.Id" />
+                <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+            </form>
+    </li>
+}
+</ul>
+
+@code{
+
+    private List<Contact> contacts = ContactsRepository.GetContacts();
+    void Delete(int id)
+    {
+        ContactsRepository.DeleteContact(id);
+        contacts = ContactsRepository.GetContacts();
+    }
+}
