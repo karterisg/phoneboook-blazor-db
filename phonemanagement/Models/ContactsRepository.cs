@@ -68,5 +68,17 @@
             if (contact != null)
                 contacts.Remove(contact);
         }
+
+
+        //epistrefei lista me epafes pou to onoma tous periexei to contactfilter, xwris na exei shmasia ta kefalaia-kleia
+        public static List<Contact> SearchContacts(string contactfilter)
+        {
+            return contacts.Where(c => c.Name != null && c.Name.Contains(contactfilter, StringComparison.OrdinalIgnoreCase)).ToList();
+
+
+        }
     }
+
 }
+
+

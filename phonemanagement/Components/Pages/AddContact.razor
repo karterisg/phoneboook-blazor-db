@@ -3,17 +3,11 @@
 
 <h3>Add Contact</h3>
 
-<form method="post">
+<form method="post" action="/add-contact-save">
+    <input name="Name" />
+    <input name="Phone" />
 
-    <InpuText @bind-Value="Name"></InpuText>
-    <InpuText @bind-Value="Phone"></InpuText>
-  
-
-    <form method="post" action="/add-contact" style="display:inline;">
-        <input type="hidden" name="id" value="@contact.Id" />
-        <button class="btn btn-sm btn-danger" type="submit">Add Contact</button>
-    </form>
-
+    <button class="btn btn-success mt-2" type="submit">Add Contact</button>
 </form>
 
 @code {
@@ -23,6 +17,6 @@
     void Save()
     {
         ContactsRepository.AddContact(contact);
-        
+            
     }
 }

@@ -1,9 +1,13 @@
 ﻿@page "/contacts"
 @using PhoneBookApp.Models
 
+
 <h3>Phone Directory</h3>
 
-<a href="/add-contact">Add Contact</a>
+<a class="btn btn-success mb-3" href="/add-contact">Add Contact</a>
+
+
+
 
 <ul>
 @foreach(var contact in contacts)

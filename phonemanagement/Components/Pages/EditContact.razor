@@ -1,23 +1,28 @@
 ﻿@page "/edit-contact/{Id:int}"
 @using PhoneBookApp.Models
+@using Microsoft.AspNetCore.Components
+
+
 
 
 <h3>Edit Contact</h3>
 
 @if (contact != null)
 {
-    <form method="post">
+
+
+    <form method="post" action="/edit-contact-save/@Id">
 
         <input name="Name" value="@contact.Name" />
         <input name="Phone" value="@contact.Phone" />
+
         <button class="btn btn-success mt-2" type="submit"> Save </button>
 
     </form>
 }
 
 @code {
-
-
+    [Parameter]
     public int Id { get; set; }
 
     Contact? contact;
@@ -25,11 +30,5 @@
     protected override void OnInitialized()
     {
         contact = ContactsRepository.GetContactById(Id);
-    }
-
-    void Save()
-    {
-        ContactsRepository.UpdateContact(contact);
-       
     }
 }
