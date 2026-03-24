@@ -1,22 +1,28 @@
 ﻿@page "/add-contact"
 @using PhoneBookApp.Models
+@inject NavigationManager Nav
+@rendermode InteractiveServer
 
 <h3>Add Contact</h3>
 
-<form method="post" action="/add-contact-save">
-    <input name="Name" />
-    <input name="Phone" />
+<EditForm Model="contact" OnValidSubmit="Save">
+    <InputText @bind-Value="contact.Name" class="form-control mb-2" placeholder="Name" />
+    <InputText @bind-Value="contact.Phone" class="form-control mb-2" placeholder="Phone" />
+
+    <InputSelect @bind-Value="contact.Gender" class="form-control mb-2">
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+    </InputSelect>
 
     <button class="btn btn-success mt-2" type="submit">Add Contact</button>
-</form>
+</EditForm>
 
 @code {
-
-    Contact contact = new Contact();
+    Contact contact = new Contact { Gender = "Male" };
 
     void Save()
     {
         ContactsRepository.AddContact(contact);
-            
+        Nav.NavigateTo("/contacts");
     }
 }

@@ -1,34 +1,40 @@
 ﻿@page "/edit-contact/{Id:int}"
 @using PhoneBookApp.Models
-@using Microsoft.AspNetCore.Components
-
-
-
+@inject NavigationManager Nav
+@rendermode InteractiveServer
 
 <h3>Edit Contact</h3>
 
 @if (contact != null)
 {
+    <EditForm Model="contact" OnValidSubmit="Update">
+        <InputText @bind-Value="contact.Name" class="form-control mb-2" />
+        <InputText @bind-Value="contact.Phone" class="form-control mb-2" />
 
+        <InputSelect @bind-Value="contact.Gender" class="form-control mb-2">
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+        </InputSelect>
 
-    <form method="post" action="/edit-contact-save/@Id">
-
-        <input name="Name" value="@contact.Name" />
-        <input name="Phone" value="@contact.Phone" />
-
-        <button class="btn btn-success mt-2" type="submit"> Save </button>
-
-    </form>
+        <button class="btn btn-success mt-2" type="submit">Save</button>
+    </EditForm>
 }
 
 @code {
-    [Parameter]
-    public int Id { get; set; }
-
+    [Parameter] public int Id { get; set; }
     Contact? contact;
 
     protected override void OnInitialized()
     {
         contact = ContactsRepository.GetContactById(Id);
+    }
+
+    void Update()
+    {
+        if (contact != null)
+        {
+            ContactsRepository.UpdateContact(contact);
+            Nav.NavigateTo("/contacts");
+        }
     }
 }

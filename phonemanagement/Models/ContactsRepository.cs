@@ -56,7 +56,7 @@
             {
                 existing.Name = contact.Name;
                 existing.Phone = contact.Phone;
-                existing.Email = contact.Email;
+                existing.Gender = contact.Gender;
             }
         }
 
