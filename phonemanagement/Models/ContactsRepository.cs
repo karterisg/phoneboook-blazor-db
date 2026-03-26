@@ -26,10 +26,8 @@
 
 
         //epistrefei th lista apo epafes 
-        public static List<Contact> GetContacts()
-        {
-            return contacts;
-        }
+        public static List<Contact> GetContacts() => contacts;
+
 
 
         //vriskei epafh me sygkekrimeno id, epistrefei null an den vrethei
@@ -41,7 +39,7 @@
         //prosthetei nea epafh, me id pou einai to megalitero id + 1
         public static void AddContact(Contact contact)
         {
-            int maxId = contacts.Max(c => c.Id);
+            int maxId = contacts.Any() ? contacts.Max(c => c.Id) : 0;
             contact.Id = maxId + 1;
             contacts.Add(contact);
         }
@@ -64,20 +62,20 @@
         //diagrafei epafh me sygkekrimeno id, an vrethei, alliws den kanei tipota
         public static void DeleteContact(int id)
         {
-            var contact = contacts.FirstOrDefault(c => c.Id == id);
-            if (contact != null)
-                contacts.Remove(contact);
+            var c = contacts.FirstOrDefault(x => x.Id == id);
+            if (c != null) contacts.Remove(c);
         }
 
 
         //epistrefei lista me epafes pou to onoma tous periexei to contactfilter, xwris na exei shmasia ta kefalaia-kleia
-        public static List<Contact> SearchContacts(string contactfilter)
+        public static List<Contact> SearchContacts(string filter)
         {
             return contacts.Where(c =>
-                (c.Name != null && c.Name.Contains(contactfilter, StringComparison.OrdinalIgnoreCase)) ||
-                (c.Phone != null && c.Phone.Contains(contactfilter))
+                (c.Name != null && c.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)) ||
+                (c.Phone != null && c.Phone.Contains(filter))
             ).ToList();
         }
+
     }
 
 }
