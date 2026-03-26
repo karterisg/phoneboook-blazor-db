@@ -1,0 +1,37 @@
+﻿@page "/view-contact/{Id:int}"
+@using PhoneBookApp.Models
+@inject NavigationManager Nav
+
+<h3>Contact Details</h3>
+
+@if (contact == null)
+{
+    <p class="text-danger">Contact not found!</p>
+}
+else
+{
+    <div class="card p-3 mb-3">
+        <p><strong>Name:</strong> @contact.Name</p>
+        <p><strong>Phone:</strong> @contact.Phone</p>
+        <p><strong>Gender:</strong> @contact.Gender</p>
+    </div>
+
+    <button class="btn btn-secondary" @onclick="GoBack">Back to Contacts</button>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Contact? contact;
+
+    protected override void OnInitialized()
+    {
+        contact = ContactsRepository.GetContacts().FirstOrDefault(c => c.Id == Id);
+    }
+
+    void GoBack()
+    {
+        Nav.NavigateTo("/contacts");
+    }
+}

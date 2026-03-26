@@ -68,6 +68,7 @@
 }
 
 <div class="mt-3">
+
     <button class="btn btn-outline-primary" @onclick="Import">Import</button>
 </div>
 
@@ -108,8 +109,7 @@
 
     void View(int id)
     {
-        // αν δεν έχεις page ακόμα, άστο έτσι ή φτιάξτο μετά
-        Console.WriteLine($"Viewing contact {id}");
+        Nav.NavigateTo($"/view-contact/{id}");
     }
 
     void Search()
