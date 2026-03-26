@@ -2,9 +2,10 @@
 @using PhoneBookApp.Models
 @rendermode InteractiveServer
 
-<h3>Phone Directory</h3>
-
-<a class="btn btn-success mb-3" href="/add-contact">Add Contact</a>
+<input class="form-control mb-2"
+       placeholder="Search by name and phone..."
+       @bind="SearchText"
+       @bind:event="oninput" />
 
 <ul>
     @foreach (var contact in contacts)
@@ -25,6 +26,25 @@
 
 @code {
     private List<Contact> contacts = new();
+
+    private string searchText = "";
+    string SearchText
+    {
+        get => searchText;
+        set
+        {
+            searchText = value;
+
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                contacts = ContactsRepository.GetContacts();
+            }
+            else
+            {
+                contacts = ContactsRepository.SearchContacts(searchText);
+            }
+        }
+    }
 
     protected override void OnInitialized()
     {
