@@ -17,7 +17,7 @@ public sealed class RealtimeDbContactsStore : IContactsStore
         _authToken = config["Firebase:AuthToken"];
 
         if (string.IsNullOrWhiteSpace(_databaseUrl))
-            throw new InvalidOperationException("Missing Firebase:DatabaseUrl in configuration.");
+            throw new InvalidOperationException("Firebase DatabaseUrl is not configured.");
     }
 
     public async Task<List<Contact>> GetAllAsync()
