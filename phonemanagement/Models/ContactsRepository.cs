@@ -64,6 +64,7 @@
         {
             var c = contacts.FirstOrDefault(x => x.Id == id);
             if (c != null) contacts.Remove(c);
+
         }
 
 
@@ -74,7 +75,7 @@
                 (c.Name != null && c.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)) ||
                 (c.Phone != null && c.Phone.Contains(filter))
             ).ToList();
-        }
+        } 
 
     }
 
