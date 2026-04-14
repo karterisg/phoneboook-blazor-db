@@ -1,4 +1,6 @@
-﻿@page "/view-contact/{Id:int}"
+﻿
+
+@page "/view-contact/{Id:int}"
 @using PhoneBookApp.Models
 @inject NavigationManager Nav
 @inject phonemanagement.Services.IContactsStore Store
@@ -15,6 +17,7 @@ else
     <div class="card p-3 mb-3">
         <p><strong>Name:</strong> @contact.Name</p>
         <p><strong>Phone:</strong> @contact.Phone</p>
+        <p><strong>Email:</strong> @contact.Email</p>
         <p><strong>Gender:</strong> @contact.Gender</p>
     </div>
 

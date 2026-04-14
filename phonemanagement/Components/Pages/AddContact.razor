@@ -9,6 +9,7 @@
 <EditForm Model="contact" OnValidSubmit="Save">
     <InputText @bind-Value="contact.Name" class="form-control mb-2" placeholder="Name" />
     <InputText @bind-Value="contact.Phone" class="form-control mb-2" placeholder="Phone" />
+    <InputText @bind-Value="contact.Email" class="form-control mb-2" placeholder="Email" />
 
     <InputSelect @bind-Value="contact.Gender" class="form-control mb-2">
         <option value="Male">Male</option>

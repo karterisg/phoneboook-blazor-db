@@ -11,6 +11,7 @@
     <EditForm Model="contact" OnValidSubmit="Update">
         <InputText @bind-Value="contact.Name" class="form-control mb-2" />
         <InputText @bind-Value="contact.Phone" class="form-control mb-2" />
+        <InputText @bind-Value="contact.Email" class="form-control mb-2" />
 
         <InputSelect @bind-Value="contact.Gender" class="form-control mb-2">
             <option value="Male">Male</option>

@@ -14,22 +14,26 @@
 </div>
 
 <input class="form-control mb-2"
-       placeholder="Search by name and phone..."
+       placeholder="Search by name, phone, or email..."
        @bind="SearchText"
        @bind:event="oninput" />
 
 <div class="mb-3">
-    <button class="btn btn-outline-dark me-2" @onclick="SortByName">Name ↑</button>
-    <button class="btn btn-outline-dark me-2" @onclick="SortByNameDesc">Name ↓</button>
+    <button class="btn btn-outline-dark me-2" @onclick="() => ToggleSort(SortField.Name)">
+        Name @SortIndicator(SortField.Name)
+    </button>
 
-    <button class="btn btn-outline-dark me-2" @onclick="SortByPhone">Phone ↑</button>
-    <button class="btn btn-outline-dark me-2" @onclick="SortByPhoneDesc">Phone ↓</button>
+    <button class="btn btn-outline-dark me-2" @onclick="() => ToggleSort(SortField.Phone)">
+        Phone @SortIndicator(SortField.Phone)
+    </button>
 
-    <button class="btn btn-outline-dark me-2" @onclick="SortByGender">Gender ↑</button>
-    <button class="btn btn-outline-dark me-2" @onclick="SortByGenderDesc">Gender ↓</button>
+    <button class="btn btn-outline-dark me-2" @onclick="() => ToggleSort(SortField.Gender)">
+        Gender @SortIndicator(SortField.Gender)
+    </button>
 
-    <button class="btn btn-outline-dark me-2" @onclick="SortById">Id ↑</button>
-    <button class="btn btn-outline-dark me-2" @onclick="SortByIdDesc">Id ↓</button>
+    <button class="btn btn-outline-dark me-2" @onclick="() => ToggleSort(SortField.Id)">
+        Id @SortIndicator(SortField.Id)
+    </button>
 
     <button class="btn btn-warning me-2" @onclick="ClearSort">Clear Sort</button>
 </div>
@@ -77,13 +81,16 @@
     private List<Contact> contacts = new();
     private string searchText = "";
 
+    private SortField? sortField = null;
+    private SortDirection sortDirection = SortDirection.Asc;
+
     string SearchText
     {
         get => searchText;
         set
         {
             searchText = value;
-            Search();
+            _ = Search();
         }
     }
 
@@ -123,6 +130,8 @@
         contacts = string.IsNullOrWhiteSpace(searchText)
             ? await Store.GetAllAsync()
             : await Store.SearchAsync(searchText);
+
+        ApplySort();
     }
 
     async Task ClearSearch()
@@ -131,20 +140,72 @@
         await Refresh();
     }
 
-    void SortByName() => contacts = contacts.OrderBy(c => c.Name).ToList();
-    void SortByPhone() => contacts = contacts.OrderBy(c => c.Phone).ToList();
-    void SortByGender() => contacts = contacts.OrderBy(c => c.Gender).ToList();
-    void SortById() => contacts = contacts.OrderBy(c => c.Id).ToList();
+    void ToggleSort(SortField field)
+    {
+        if (sortField == field)
+        {
+            sortDirection = sortDirection == SortDirection.Asc ? SortDirection.Desc : SortDirection.Asc;
+        }
+        else
+        {
+            sortField = field;
+            sortDirection = SortDirection.Asc;
+        }
+        ApplySort();
+    }
 
-    void SortByNameDesc() => contacts = contacts.OrderByDescending(c => c.Name).ToList();
-    void SortByPhoneDesc() => contacts = contacts.OrderByDescending(c => c.Phone).ToList();
-    void SortByGenderDesc() => contacts = contacts.OrderByDescending(c => c.Gender).ToList();
-    void SortByIdDesc() => contacts = contacts.OrderByDescending(c => c.Id).ToList();
+    string SortIndicator(SortField field)
+    {
+        if (sortField != field) return "";
+        return sortDirection == SortDirection.Asc ? "↑" : "↓";
+    }
 
-    void ClearSort() => Refresh();
+    void ApplySort()
+    {
+        if (sortField is null) return;
+
+        contacts = (sortField.Value, sortDirection) switch
+        {
+            (SortField.Name, SortDirection.Asc) => contacts.OrderBy(c => c.Name).ToList(),
+            (SortField.Name, SortDirection.Desc) => contacts.OrderByDescending(c => c.Name).ToList(),
+
+            (SortField.Phone, SortDirection.Asc) => contacts.OrderBy(c => c.Phone).ToList(),
+            (SortField.Phone, SortDirection.Desc) => contacts.OrderByDescending(c => c.Phone).ToList(),
+
+            (SortField.Gender, SortDirection.Asc) => contacts.OrderBy(c => c.Gender).ToList(),
+            (SortField.Gender, SortDirection.Desc) => contacts.OrderByDescending(c => c.Gender).ToList(),
+
+            (SortField.Id, SortDirection.Asc) => contacts.OrderBy(c => c.Id).ToList(),
+            (SortField.Id, SortDirection.Desc) => contacts.OrderByDescending(c => c.Id).ToList(),
+
+            _ => contacts
+        };
+    }
+
+    void ClearSort()
+    {
+        sortField = null;
+        sortDirection = SortDirection.Asc;
+        _ = Refresh();
+    }
 
     async Task Refresh()
     {
         contacts = await Store.GetAllAsync();
+        ApplySort();
+    }
+
+    enum SortField
+    {
+        Name,
+        Phone,
+        Gender,
+        Id
+    }
+
+    enum SortDirection
+    {
+        Asc,
+        Desc
     }
 }
