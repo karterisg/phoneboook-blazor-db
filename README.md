@@ -220,12 +220,3 @@ Steps:
 7) dotnet run
 
 
-12) “Τι θα πω στην παρουσίαση” (σκονάκι)
-----------------------------------------
-“Η εφαρμογή αποτελείται από Blazor UI + REST API. Όλη η πρόσβαση στα δεδομένα
-περνάει από το IContactsStore. Η SQL υλοποίηση (SqlContactsStore) χρησιμοποιεί EF Core
-και DbContext (AppDbContext). Το schema ορίζεται από migrations και εφαρμόζεται με
-dotnet-ef. Η demo λίστα υπάρχει πλέον ως seed δεδομένα μέσα στη βάση και όχι ως static list
-στον κώδικα. Με Postman μπορώ να κάνω CRUD πάνω στα endpoints /api/contacts και να δω
-ότι οι αλλαγές ενημερώνουν πραγματικά τον SQL Server (SSMS).”
-
