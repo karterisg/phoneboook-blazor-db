@@ -1,32 +1,32 @@
-@page "/add-contact"
-@using PhoneBookApp.Models
-@inject NavigationManager Nav
-@inject phonemanagement.Services.IContactsStore Store
-@rendermode InteractiveServer
+@page "/add-contact" @* route gia ti selida add *@
+@using PhoneBookApp.Models @* xrisimopoiei to Contact model *@
+@inject NavigationManager Nav @* navigation metaksy selidon *@
+@inject phonemanagement.Services.IContactsStore Store @* store pou grafei stin SQL *@
+@rendermode InteractiveServer @* xreiazetai gia na doulepsei to form submit *@
 
-<h3>Add Contact</h3>
+<h3>Add Contact</h3> @* titlos selidas *@
 
-<EditForm Model="contact" OnValidSubmit="Save">
-    <InputText @bind-Value="contact.Name" class="form-control mb-2" placeholder="Name" />
-    <InputText @bind-Value="contact.Phone" class="form-control mb-2" placeholder="Phone" />
-    <InputText @bind-Value="contact.Email" class="form-control mb-2" placeholder="Email" />
+<EditForm Model="contact" OnValidSubmit="Save"> @* form pou kanei bind sto contact kai sto submit kalei Save *@
+    <InputText @bind-Value="contact.Name" class="form-control mb-2" placeholder="Name" /> @* input gia Name *@
+    <InputText @bind-Value="contact.Phone" class="form-control mb-2" placeholder="Phone" /> @* input gia Phone *@
+    <InputText @bind-Value="contact.Email" class="form-control mb-2" placeholder="Email" /> @* input gia Email *@
 
 
-    <InputSelect @bind-Value="contact.Gender" class="form-control mb-2">
-        <option value="Male">Male</option>
-        <option value="Female">Female</option>
-    </InputSelect>
+    <InputSelect @bind-Value="contact.Gender" class="form-control mb-2"> @* dropdown gia Gender *@
+        <option value="Male">Male</option> @* epilogi Male *@
+        <option value="Female">Female</option> @* epilogi Female *@
+    </InputSelect> @* telos dropdown *@
 
-    <button class="btn btn-success mt-2" type="submit">Add Contact</button>
+    <button class="btn btn-success mt-2" type="submit">Add Contact</button> @* submit pou kanei Save *@
 </EditForm>
 
-@code {
-    Contact contact = new Contact { Gender = "Male" };
+@code { @* code-behind tou component *@
+    Contact contact = new Contact { Gender = "Male" }; @* arxiko model me default Gender *@
 
-    async Task Save()
-    {
-        await Store.AddAsync(contact);
-        Nav.NavigateTo("/contacts");
-    }
+    async Task Save() @* method pou kaleitai sto submit *@
+    { @* arxi method *@
+        await Store.AddAsync(contact); @* INSERT stin SQL mesw store *@
+        Nav.NavigateTo("/contacts"); @* gurna piso sti lista *@
+    } @* telos method *@
 
-}
+} @* telos code *@

@@ -1,42 +1,40 @@
+@page "/view-contact/{Id:int}" @* route me parameter Id *@
+@using PhoneBookApp.Models @* xrisimopoiei to Contact model *@
+@inject NavigationManager Nav @* navigation *@
+@inject phonemanagement.Services.IContactsStore Store @* store gia load apo SQL *@
+@rendermode InteractiveServer  @* xreiazetai gia @onclick button *@
 
+<h3>Contact Details</h3> @* titlos selidas *@
 
-@page "/view-contact/{Id:int}"
-@using PhoneBookApp.Models
-@inject NavigationManager Nav
-@inject phonemanagement.Services.IContactsStore Store
-@rendermode InteractiveServer 
-
-<h3>Contact Details</h3>
-
-@if (contact == null)
+@if (contact == null) @* an den vrethei, deikse error *@
 {
-    <p class="text-danger">Contact not found!</p>
+    <p class="text-danger">Contact not found!</p> @* minima otan den yparxei contact *@
 }
 else
 {
-    <div class="card p-3 mb-3">
-        <p><strong>Name:</strong> @contact.Name</p>
-        <p><strong>Phone:</strong> @contact.Phone</p>
-        <p><strong>Email:</strong> @contact.Email</p>
-        <p><strong>Gender:</strong> @contact.Gender</p>
-    </div>
+    <div class="card p-3 mb-3"> @* card layout gia details *@
+        <p><strong>Name:</strong> @contact.Name</p> @* deiknei Name *@
+        <p><strong>Phone:</strong> @contact.Phone</p> @* deiknei Phone *@
+        <p><strong>Email:</strong> @contact.Email</p> @* deiknei Email *@
+        <p><strong>Gender:</strong> @contact.Gender</p> @* deiknei Gender *@
+    </div> @* telos card *@
 
-    <button class="btn btn-secondary" @onclick="GoBack">Back to Contacts</button>
+    <button class="btn btn-secondary" @onclick="GoBack">Back to Contacts</button> @* koumpi back *@
 }
 
-@code {
-    [Parameter]
-    public int Id { get; set; }
+@code { @* code-behind *@
+    [Parameter] @* dilonei oti to Id erxetai apo route *@
+    public int Id { get; set; } @* to Id pou theloume na doume *@
 
-    private Contact? contact;
+    private Contact? contact; @* to contact pou fortonoume apo SQL *@
 
-    protected override async Task OnInitializedAsync()
-    {
-        contact = await Store.GetByIdAsync(Id);
-    }
+    protected override async Task OnInitializedAsync() @* trexei otan anoigei i selida *@
+    { @* arxi init *@
+        contact = await Store.GetByIdAsync(Id); @* SELECT apo SQL me to Id *@
+    } @* telos init *@
 
-    void GoBack()
-    {
-        Nav.NavigateTo("/contacts");
-    }
-}
+    void GoBack() @* handler gia to back button *@
+    { @* arxi handler *@
+        Nav.NavigateTo("/contacts"); @* navigate piso sti lista *@
+    } @* telos handler *@
+} @* telos code *@

@@ -1,44 +1,44 @@
-@page "/edit-contact/{Id:int}"
-@using PhoneBookApp.Models
-@inject NavigationManager Nav
-@inject phonemanagement.Services.IContactsStore Store
-@rendermode InteractiveServer
+@page "/edit-contact/{Id:int}" @* route me parameter Id *@
+@using PhoneBookApp.Models @* xrisimopoiei to Contact model *@
+@inject NavigationManager Nav @* navigation metaksy selidon *@
+@inject phonemanagement.Services.IContactsStore Store @* store pou diavazei/grafei stin SQL *@
+@rendermode InteractiveServer @* xreiazetai gia forms/events *@
 
-<h3>Edit Contact</h3>
+<h3>Edit Contact</h3> @* titlos selidas *@
 
-@if (contact != null)
+@if (contact != null) @* an fortothike to contact, deikse form *@
 {
-    <EditForm Model="contact" OnValidSubmit="Update">
-        <InputText @bind-Value="contact.Name" class="form-control mb-2" />
-        <InputText @bind-Value="contact.Phone" class="form-control mb-2" />
-        <InputText @bind-Value="contact.Email" class="form-control mb-2" />
+    <EditForm Model="contact" OnValidSubmit="Update"> @* form gia update tou contact *@
+        <InputText @bind-Value="contact.Name" class="form-control mb-2" /> @* edit Name *@
+        <InputText @bind-Value="contact.Phone" class="form-control mb-2" /> @* edit Phone *@
+        <InputText @bind-Value="contact.Email" class="form-control mb-2" /> @* edit Email *@
 
-        <InputSelect @bind-Value="contact.Gender" class="form-control mb-2">
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-        </InputSelect>
+        <InputSelect @bind-Value="contact.Gender" class="form-control mb-2"> @* edit Gender *@
+            <option value="Male">Male</option> @* Male option *@
+            <option value="Female">Female</option> @* Female option *@
+        </InputSelect> @* telos dropdown *@
 
-        <button class="btn btn-success mt-2" type="submit">Save</button>
+        <button class="btn btn-success mt-2" type="submit">Save</button> @* submit pou kalei Update *@
     </EditForm>
 }
 
-@code {
-    [Parameter] public int Id { get; set; } 
+@code { @* code-behind tou component *@
+    [Parameter] public int Id { get; set; }  @* pairnei Id apo route *@
 
 
-    Contact? contact;
+    Contact? contact; @* to model pou fortonoume apo SQL *@
 
-    protected override async Task OnInitializedAsync()
-    {
-        contact = await Store.GetByIdAsync(Id);
-    }
+    protected override async Task OnInitializedAsync() @* trexei otan arxikopoieitai i selida *@
+    { @* arxi init *@
+        contact = await Store.GetByIdAsync(Id); @* SELECT contact apo SQL me to Id *@
+    } @* telos init *@
 
-    async Task Update()
-    {
-        if (contact != null)
-        {
-            await Store.UpdateAsync(contact);
-            Nav.NavigateTo("/contacts");
-        }
-    }
-}
+    async Task Update() @* trexei sto submit tou form *@
+    { @* arxi update *@
+        if (contact != null) @* safety check *@
+        { @* arxi if *@
+            await Store.UpdateAsync(contact); @* UPDATE stin SQL mesw store *@
+            Nav.NavigateTo("/contacts"); @* gurna piso sti lista *@
+        } @* telos if *@
+    } @* telos update *@
+} @* telos code *@
