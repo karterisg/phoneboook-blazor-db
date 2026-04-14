@@ -1,4 +1,4 @@
-using PhoneBookApp.Models; // fernei to Contact model pou xrisimopoioume se API/UI
+using PhoneBookApp.Models; // fernei to Contact model pou xrisimoipoioume se API/UI
 using phonemanagement.Components; // fernei to Blazor App component (UI root)
 using phonemanagement.Data; // fernei AppDbContext + DbSeeder gia SQL/EF
 using phonemanagement.Services; // fernei IContactsStore + SqlContactsStore (CRUD layer)
@@ -20,12 +20,9 @@ builder.Services.AddCors(options =>
 });
 
 //API testing // swagger/openapi gia dokimes tou API
-builder.Services.AddEndpointsApiExplorer(); // paragei OpenAPI metadata apo minimal APIs
+builder.Services.AddEndpointsApiExplorer(); 
 builder.Services.AddSwaggerGen(); // ftiaxnei swagger docs + swagger UI
-builder.Services.AddAntiforgery(options =>
-{
-    options.HeaderName = "X-CSRF-TOKEN"; // orizei poio header xrisimopoiei to antiforgery
-});
+
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection"); // connection string (LocalDB/LOCALHOST) apo appsettings
 if (!string.IsNullOrWhiteSpace(connectionString)) // an yparxei, doulevoume me SQL Server

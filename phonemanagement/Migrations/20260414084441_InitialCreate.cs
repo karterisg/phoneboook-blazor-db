@@ -4,10 +4,8 @@
 
 namespace phonemanagement.Migrations
 {
-    /// <inheritdoc />
     public partial class InitialCreate : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -26,12 +24,13 @@ namespace phonemanagement.Migrations
                     table.PrimaryKey("PK_Contacts", x => x.Id);
                 });
         }
-
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
                 name: "Contacts");
         }
+
     }
+
 }
+
