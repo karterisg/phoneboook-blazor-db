@@ -1,7 +1,132 @@
 ﻿@page "/"
+@using PhoneBookApp.Models
+@inject phonemanagement.Services.IContactsStore Store
+@inject NavigationManager Nav
+@rendermode InteractiveServer
 
-<PageTitle>Welcome to Phone dir</PageTitle>
+<PageTitle>Phone Directory</PageTitle>
 
-<h1>test of phone book directory</h1>
+<h1>Phone Directory</h1>
 
-Welcome to your new app.
+<p class="text-muted">
+    Manage contacts stored in SQL Server. Use the shortcuts below or jump straight into the directory.
+</p>
+
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-4">
+        <div class="card p-3">
+            <div class="h6 text-muted mb-1">Total contacts</div>
+            <div class="display-6 mb-0">@totalCount</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card p-3">
+            <div class="h6 text-muted mb-1">Male</div>
+            <div class="display-6 mb-0">@maleCount</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card p-3">
+            <div class="h6 text-muted mb-1">Female</div>
+            <div class="display-6 mb-0">@femaleCount</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-12 col-lg-6">
+        <div class="card p-3 h-100">
+            <h5 class="mb-3">Quick actions</h5>
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-success" @onclick="GoAdd">Add contact</button>
+                <button class="btn btn-primary" @onclick="GoContacts">Open directory</button>
+                <button class="btn btn-outline-secondary" @onclick="Refresh">Refresh</button>
+            </div>
+            <hr />
+            <label class="form-label">Quick search</label>
+            <div class="input-group">
+                <input class="form-control" placeholder="Name, phone, or email…" @bind="quickSearch" @bind:event="oninput" />
+                <button class="btn btn-outline-dark" @onclick="GoSearch" disabled="@string.IsNullOrWhiteSpace(quickSearch)">Search</button>
+            </div>
+            <small class="text-muted d-block mt-2">
+                Search runs inside the directory page and queries SQL.
+            </small>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card p-3 h-100">
+            <h5 class="mb-3">Recent contacts</h5>
+
+            @if (loading)
+            {
+                <p class="text-muted mb-0">Loading…</p>
+            }
+            else if (!recent.Any())
+            {
+                <p class="text-muted mb-0">No contacts yet. Add your first contact.</p>
+            }
+            else
+            {
+                <ul class="list-group">
+                    @foreach (var c in recent)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>
+                                <strong>@c.Name</strong>
+                                <span class="text-muted">— @c.Phone</span>
+                                @if (!string.IsNullOrWhiteSpace(c.Email))
+                                {
+                                    <span class="text-muted">(@c.Email)</span>
+                                }
+                            </span>
+                            <button class="btn btn-sm btn-outline-info" @onclick="() => GoView(c.Id)">View</button>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+</div>
+
+@code
+{
+    private bool loading = true;
+    private string quickSearch = "";
+
+    private int totalCount;
+    private int maleCount;
+    private int femaleCount;
+
+    private List<Contact> recent = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        var all = await Store.GetAllAsync();
+
+        totalCount = all.Count;
+        maleCount = all.Count(c => string.Equals(c.Gender, "Male", StringComparison.OrdinalIgnoreCase));
+        femaleCount = all.Count(c => string.Equals(c.Gender, "Female", StringComparison.OrdinalIgnoreCase));
+
+        recent = all.OrderByDescending(c => c.Id).Take(5).ToList();
+        loading = false;
+    }
+
+    private void GoContacts() => Nav.NavigateTo("/contacts");
+    private void GoAdd() => Nav.NavigateTo("/add-contact");
+    private void GoView(int id) => Nav.NavigateTo($"/view-contact/{id}");
+
+    private void GoSearch()
+    {
+        var q = Uri.EscapeDataString(quickSearch.Trim());
+        Nav.NavigateTo($"/contacts?search={q}");
+    }
+
+    private async Task Refresh() => await LoadAsync();
+}

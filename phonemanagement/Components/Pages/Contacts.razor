@@ -96,7 +96,19 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Support deep link from Home quick search: /contacts?search=...
+        var uri = new Uri(Nav.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        if (query.TryGetValue("search", out var q) && !string.IsNullOrWhiteSpace(q))
+        {
+            searchText = q.ToString();
+        }
+
         contacts = await Store.GetAllAsync();
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            await Search();
+        }
     }
 
     async Task Delete(int id)

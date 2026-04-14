@@ -42,7 +42,7 @@ else
 
 var app = builder.Build();
 
-// Ensure DB exists & seed demo data (only when SQL is configured)
+// if all deleted put demo seed again
 if (!string.IsNullOrWhiteSpace(connectionString))
 {
     using var scope = app.Services.CreateScope();
@@ -64,47 +64,47 @@ app.UseCors();
 
 app.UseAntiforgery();
 
-// 🔹 Static files
+//Static files
 app.MapStaticAssets();
 
 //Swagger UI
 app.UseSwagger();
 app.UseSwaggerUI();
 
-// 🔹 API endpoints
+//API endpoints
 var contactsApi = app.MapGroup("/api/contacts");
 
 
 
-// GET all
+//GET all
 contactsApi.MapGet("/", async (IContactsStore store) =>
 {
     var contacts = await store.GetAllAsync();
     return Results.Ok(contacts);
 });
 
-// GET by id
+//gET by id
 contactsApi.MapGet("/{id:int}", async (int id, IContactsStore store) =>
 {
     var contact = await store.GetByIdAsync(id);
     return contact is null ? Results.NotFound() : Results.Ok(contact);
 });
 
-// SEARCH
+//SEARCH
 contactsApi.MapGet("/search", async (string q, IContactsStore store) =>
 {
     var results = await store.SearchAsync(q);
     return Results.Ok(results);
 });
 
-// CREATE
+//CREATE
 contactsApi.MapPost("/", async (Contact contact, IContactsStore store) =>
 {
     var created = await store.AddAsync(contact);
     return Results.Created($"/api/contacts/{created.Id}", created);
 });
 
-// UPDATE
+//UPDATE
 contactsApi.MapPut("/{id:int}", async (int id, Contact contact, IContactsStore store) =>
 {
     if (id != contact.Id)
@@ -114,7 +114,7 @@ contactsApi.MapPut("/{id:int}", async (int id, Contact contact, IContactsStore s
     return ok ? Results.Ok(contact) : Results.NotFound();
 });
 
-// DELETE
+//DELETE
 contactsApi.MapDelete("/{id:int}", async (int id, IContactsStore store) =>
 {
     var ok = await store.DeleteAsync(id);
@@ -124,5 +124,9 @@ contactsApi.MapDelete("/{id:int}", async (int id, IContactsStore store) =>
 //Blazor app
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+
+app.MapRazorComponents<App>()
+    .AddAdditionalAssemblies();
 
 app.Run();
