@@ -1,6 +1,7 @@
 ﻿@page "/add-contact"
 @using PhoneBookApp.Models
 @inject NavigationManager Nav
+@inject phonemanagement.Services.IContactsStore Store
 @rendermode InteractiveServer
 
 <h3>Add Contact</h3>
@@ -20,9 +21,9 @@
 @code {
     Contact contact = new Contact { Gender = "Male" };
 
-    void Save()
+    async Task Save()
     {
-        ContactsRepository.AddContact(contact);
+        await Store.AddAsync(contact);
         Nav.NavigateTo("/contacts");
     }
 

@@ -12,6 +12,8 @@ public sealed class FirestoreContactsStore : IContactsStore
         _contacts = db.Collection("contacts");
     }
 
+
+
     public async Task<List<Contact>> GetAllAsync()
     {
         var snap = await _contacts.GetSnapshotAsync();
@@ -31,7 +33,6 @@ public sealed class FirestoreContactsStore : IContactsStore
     {
         if (string.IsNullOrWhiteSpace(query)) return await GetAllAsync();
 
-        // Simple client-side filtering to avoid requiring composite indexes.
         var all = await GetAllAsync();
         return all.Where(c =>
                 (!string.IsNullOrWhiteSpace(c.Name) && c.Name.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
@@ -87,8 +88,6 @@ public sealed class FirestoreContactsStore : IContactsStore
 
     private async Task<int> NextIdAsync()
     {
-        // Generates a numeric Id without needing a server-side counter.
-        // Works fine for small apps; for high concurrency you'd use a transaction/counter doc.
         var snap = await _contacts.GetSnapshotAsync();
         var max = 0;
         foreach (var d in snap.Documents)

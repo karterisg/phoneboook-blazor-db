@@ -1,14 +1,16 @@
-﻿using PhoneBookApp.Models;
+using PhoneBookApp.Models;
 using phonemanagement.Components;
+using phonemanagement.Data;
 using phonemanagement.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 🔹 Razor Components (Blazor Server)
+//Razor Components
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// 🔹 CORS (για Postman / external calls)
+//για Postman
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -17,27 +19,39 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod());
 });
 
-// 🔹 Swagger (API testing)
+//API testing
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
-// 🔹 Decide which store to use (Firebase ή InMemory)
-var firebaseUrl = builder.Configuration["Firebase:DatabaseUrl"];
-
-if (!string.IsNullOrWhiteSpace(firebaseUrl))
+builder.Services.AddAntiforgery(options =>
 {
-    builder.Services.AddHttpClient<IContactsStore, RealtimeDbContactsStore>();
-    Console.WriteLine("Using Firebase Realtime DB");
+    options.HeaderName = "X-CSRF-TOKEN";
+});
+
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrWhiteSpace(connectionString))
+{
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseSqlServer(connectionString));
+    builder.Services.AddScoped<IContactsStore, SqlContactsStore>();
+    Console.WriteLine("Using SQL Server store");
 }
 else
 {
-    builder.Services.AddSingleton<IContactsStore, InMemoryContactsStore>();
-    Console.WriteLine("Using InMemory store");
+    throw new InvalidOperationException("Missing ConnectionStrings:DefaultConnection. Configure SQL Server connection string.");
 }
 
 var app = builder.Build();
 
-// 🔹 Middleware pipeline
+// Ensure DB exists & seed demo data (only when SQL is configured)
+if (!string.IsNullOrWhiteSpace(connectionString))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+    await DbSeeder.SeedAsync(db);
+}
+
+//Middleware pipeline
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
@@ -53,12 +67,14 @@ app.UseAntiforgery();
 // 🔹 Static files
 app.MapStaticAssets();
 
-// 🔹 Swagger UI
+//Swagger UI
 app.UseSwagger();
 app.UseSwaggerUI();
 
 // 🔹 API endpoints
 var contactsApi = app.MapGroup("/api/contacts");
+
+
 
 // GET all
 contactsApi.MapGet("/", async (IContactsStore store) =>
@@ -105,7 +121,7 @@ contactsApi.MapDelete("/{id:int}", async (int id, IContactsStore store) =>
     return ok ? Results.NoContent() : Results.NotFound();
 });
 
-// 🔹 Blazor app
+//Blazor app
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
