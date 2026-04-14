@@ -1,0 +1,159 @@
+﻿File: phonemanagement\\Program.cs
+Line 1: using PhoneBookApp.Models; -> Φέρνω το namespace που έχει το Contact model.
+Line 2: using phonemanagement.Components; -> Φέρνω το namespace που έχει το Blazor App component.
+Line 3: using phonemanagement.Data; -> Φέρνω DbContext και seeder (AppDbContext/DbSeeder).
+Line 4: using phonemanagement.Services; -> Φέρνω τα services (IContactsStore/SqlContactsStore).
+Line 5: using Microsoft.EntityFrameworkCore; -> Χρειάζεται για UseSqlServer, MigrateAsync, EF Core APIs.
+Line 7: var builder = WebApplication.CreateBuilder(args); -> Δημιουργώ τον builder της ASP.NET Core εφαρμογής.
+Line 9-11: AddRazorComponents().AddInteractiveServerComponents(); -> Ενεργοποιώ Blazor Server (interactive) components.
+Line 13-20: AddCors με AllowAnyOrigin/AnyHeader/AnyMethod -> Επιτρέπω κλήσεις από Postman/άλλους clients χωρίς CORS restrictions.
+Line 22-24: AddEndpointsApiExplorer + AddSwaggerGen -> Ενεργοποιώ Swagger/OpenAPI για δοκιμές του API.
+Line 25-28: AddAntiforgery με HeaderName -> Ρυθμίζω antiforgery header για UI requests (δεν αφορά το API του Postman άμεσα).
+Line 30: GetConnectionString(\"DefaultConnection\") -> Παίρνω το connection string από appsettings (εκεί μπαίνει LocalDB/LOCALHOST).
+Line 31: if (!string.IsNullOrWhiteSpace(connectionString)) -> Αν υπάρχει connection string, θα τρέξω με SQL Server.
+Line 33-34: AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString)) -> Ενεργοποιώ EF Core και λέω provider=SQL Server.
+Line 35: AddScoped<IContactsStore, SqlContactsStore>() -> Ορίζω ότι CRUD για contacts γίνεται από SqlContactsStore (μέσω EF).
+Line 36: Console.WriteLine(\"Using SQL Server store\") -> Debug log για να ξέρω ποιο store χρησιμοποιείται.
+Line 38-41: else throw InvalidOperationException -> Αν λείπει το connection string, δεν επιτρέπω να τρέξει χωρίς SQL.
+Line 43: var app = builder.Build(); -> Χτίζω το app pipeline.
+Line 45: σχόλιο -> Λέει ότι αν σβηστούν όλα, ξαναβάζουμε seed.
+Line 46-52: CreateScope + GetRequiredService<AppDbContext> + MigrateAsync + DbSeeder.SeedAsync -> Εφαρμόζω migrations και κάνω seed δεδομένα αν είναι άδεια η βάση.
+Line 54-59: if (!Development) UseExceptionHandler + UseHsts -> Production error handling και HSTS.
+Line 61: UseHttpsRedirection -> Redirect σε HTTPS (αν υπάρχει https profile).
+Line 63: UseCors -> Ενεργοποιώ CORS policy.
+Line 65: UseAntiforgery -> Ενεργοποιώ antiforgery middleware.
+Line 67-68: MapStaticAssets -> Σερβίρω static files (css/js).
+Line 70-72: UseSwagger + UseSwaggerUI -> Φέρνω swagger UI.
+Line 74-75: MapGroup(\"/api/contacts\") -> Ομαδοποιώ όλα τα contacts endpoints κάτω από /api/contacts.
+Line 79-84: MapGet(\"/\") -> GET όλα τα contacts, επιστρέφει Store.GetAllAsync() σαν JSON.
+Line 86-91: MapGet(\"/{id:int}\") -> GET contact με id, επιστρέφει 404 αν δεν υπάρχει.
+Line 93-98: MapGet(\"/search\") -> Search με query parameter q, επιστρέφει Store.SearchAsync(q).
+Line 100-105: MapPost(\"/\") -> Create contact, το Id το βάζει SQL (IDENTITY), επιστρέφει 201 Created.
+Line 107-115: MapPut(\"/{id:int}\") -> Update contact, αν id route != id body τότε το διορθώνει, κάνει Store.UpdateAsync.
+Line 117-122: MapDelete(\"/{id:int}\") -> Delete contact, επιστρέφει 204 ή 404.
+Line 124-126: MapRazorComponents<App>().AddInteractiveServerRenderMode() -> Φέρνω το Blazor UI.
+Line 129-130: MapRazorComponents<App>().AddAdditionalAssemblies() -> Extra mapping κλήση, αυτή τη στιγμή δεν προσθέτει συγκεκριμένα assemblies (είναι ουσιαστικά περιττή όπως είναι).
+Line 132: app.Run(); -> Εκκίνηση του server.
+
+File: phonemanagement\\Models\\Contact.cs
+Line 1: namespace PhoneBookApp.Models -> Namespace για τα models.
+Line 3: public class Contact -> Κλάση οντότητας επαφής.
+Line 5: public int Id { get; set; } -> Primary key στη SQL, Identity.
+Line 6: public string? Name { get; set; } -> Όνομα (nullable).
+Line 7: public string? Phone { get; set; } -> Τηλέφωνο (nullable).
+Line 8: public string? Email { get; set; } -> Email (nullable).
+Line 9: public string Gender { get; set; } = \"Male\"; -> Φύλο με default \"Male\".
+
+File: phonemanagement\\Services\\IContactsStore.cs
+Line 1: using PhoneBookApp.Models; -> Χρειάζομαι το Contact.
+Line 5: public interface IContactsStore -> Contract για CRUD operations.
+Line 7: GetAllAsync -> Επιστρέφει λίστα όλων των contacts.
+Line 8: GetByIdAsync -> Επιστρέφει 1 contact ή null.
+Line 9: SearchAsync -> Search σε name/phone/email.
+Line 10: AddAsync -> Insert νέου contact.
+Line 11: UpdateAsync -> Update existing, επιστρέφει true/false.
+Line 12: DeleteAsync -> Delete existing, επιστρέφει true/false.
+
+File: phonemanagement\\Data\\AppDbContext.cs
+Line 1: using Microsoft.EntityFrameworkCore -> EF Core base types.
+Line 2: using PhoneBookApp.Models -> Contact entity.
+Line 6: public sealed class AppDbContext : DbContext -> Ο DbContext του EF για το project.
+Line 8: ctor(DbContextOptions<AppDbContext> options) -> Inject options από DI.
+Line 10: DbSet<Contact> Contacts -> Αντιστοιχεί στον πίνακα Contacts.
+Line 12-22: OnModelCreating -> Mapping rules: table name, key, identity, max lengths.
+
+File: phonemanagement\\Services\\SqlContactsStore.cs
+Line 1: using Microsoft.EntityFrameworkCore -> ToListAsync, AsNoTracking, EF.Functions.Like.
+Line 3: using phonemanagement.Data -> AppDbContext.
+Line 7: class SqlContactsStore : IContactsStore -> SQL υλοποίηση του store.
+Line 9: private readonly AppDbContext _db -> DbContext για πρόσβαση στη βάση.
+Line 16-17: GetAllAsync -> SELECT όλα ταξινομημένα by Id.
+Line 19-20: GetByIdAsync -> SELECT ένα by Id.
+Line 22-34: SearchAsync -> Αν query κενό, επιστρέφει όλα, αλλιώς LIKE σε Name/Phone/Email.
+Line 36-42: AddAsync -> Θέτει Id=0 για identity, Add, SaveChangesAsync, επιστρέφει το created contact.
+Line 44-56: UpdateAsync -> Fetch entity, αν δεν υπάρχει false, αλλιώς update fields και SaveChangesAsync.
+Line 58-66: DeleteAsync -> Fetch entity, αν δεν υπάρχει false, αλλιώς Remove και SaveChangesAsync.
+
+File: phonemanagement\\Data\\DbSeeder.cs
+Line 1-2: using -> EF Core + Contact.
+Line 6: static class DbSeeder -> Helper για seed δεδομένων.
+Line 8: SeedAsync(AppDbContext db) -> Method που γεμίζει αρχικά δεδομένα.
+Line 10: if AnyAsync return -> Αν υπάρχουν ήδη contacts, δεν ξαναβάζω.
+Line 12-29: AddRange -> Βάζω την αρχική λίστα επαφών με Name/Phone/Email/Gender.
+Line 31: db.SaveChanges(); -> Αποθηκεύει sync (αυτό είναι περιττό γιατί μετά κάνουμε SaveChangesAsync).
+Line 33: await db.SaveChangesAsync(); -> Αποθηκεύει async. Αυτό αρκεί από μόνο του.
+
+File: phonemanagement\\Migrations\\20260414084441_InitialCreate.cs
+Line 1: using Microsoft.EntityFrameworkCore.Migrations -> Base types για migrations.
+Line 8: class InitialCreate : Migration -> Το migration που δημιουργεί schema.
+Line 11-28: Up -> CreateTable Contacts με Id identity και columns Name/Phone/Email/Gender.
+Line 31-35: Down -> DropTable Contacts αν κάνεις rollback.
+
+File: phonemanagement\\Migrations\\AppDbContextModelSnapshot.cs
+Line 1: auto-generated -> EF snapshot για το current model state.
+Line 12: [DbContext(typeof(AppDbContext))] -> Συνδέει το snapshot με το DbContext.
+Line 15-54: BuildModel -> Περιγράφει την οντότητα Contact και το mapping της σε Contacts table.
+
+File: phonemanagement\\Components\\Pages\\Home.razor
+Line 1: @page \"/\" -> Route για αρχική σελίδα.
+Line 2: @using Contact -> Χρήση τύπου Contact στο UI.
+Line 3: @inject IContactsStore Store -> Παίρνω store για να διαβάσω contacts από SQL.
+Line 4: @inject NavigationManager Nav -> Για navigation σε άλλες σελίδες.
+Line 5: @rendermode InteractiveServer -> Ενεργοποιεί click events στο Blazor Server.
+Line 7: <PageTitle> -> Title browser tab.
+Line 9-13: Εισαγωγικό κείμενο.
+Line 15-34: Cards με total/male/female counts.
+Line 36-55: Quick actions κουμπιά + quick search.
+Line 57-89: Recent contacts list (τελευταία 5 by Id) και κουμπί View.
+Line 92-132: @code -> State + OnInitializedAsync -> LoadAsync -> υπολογίζει counts και recent, handlers για navigation και refresh.
+
+File: phonemanagement\\Components\\Pages\\Contacts.razor
+Line 1: @page \"/contacts\" -> Route directory.
+Line 4: inject IContactsStore -> CRUD/queries σε SQL.
+Line 5: @rendermode InteractiveServer -> Click events.
+Line 9-14: Κουμπιά Add/Search/Clear/Refresh.
+Line 16-19: Search input που δένει στο SearchText και κάνει search on input.
+Line 21-39: Sort buttons (ένα ανά στήλη) + Clear sort.
+Line 41-68: Render list contacts με Edit/Delete/View.
+Line 80-223: Code-behind: κρατάει contacts list, searchText, sort state. Στο OnInitializedAsync διαβάζει query param search από URL (/contacts?search=...) και κάνει search. Τα CRUD operations καλούν Store και μετά Refresh. Το sort εφαρμόζεται πάνω στη λίστα (client-side) με ToggleSort και ApplySort.
+
+File: phonemanagement\\Components\\Pages\\AddContact.razor
+Line 1: @page \"/add-contact\" -> Route add.
+Line 4: inject IContactsStore -> Για insert.
+Line 9-21: EditForm με InputText για Name/Phone/Email και InputSelect για Gender, submit button.
+Line 23-32: Code: contact model + Save() που κάνει await Store.AddAsync και μετά NavigateTo /contacts.
+
+File: phonemanagement\\Components\\Pages\\EditContact.razor
+Line 1: @page \"/edit-contact/{Id:int}\" -> Route edit με id.
+Line 4: inject IContactsStore -> Για load/update.
+Line 9-23: Αν contact != null, δείχνει form με Name/Phone/Email/Gender.
+Line 26: [Parameter] Id -> Παίρνει id από route.
+Line 31-34: OnInitializedAsync -> contact = await Store.GetByIdAsync(Id).
+Line 36-43: Update() -> await Store.UpdateAsync(contact) και navigate πίσω.
+
+File: phonemanagement\\Components\\Pages\\View.razor
+Line 3: @page \"/view-contact/{Id:int}\" -> Route view με id.
+Line 6: inject IContactsStore -> Για load.
+Line 11-25: Αν δεν βρεθεί contact, error message, αλλιώς εμφανίζει Name/Phone/Email/Gender + Back button.
+Line 33-36: OnInitializedAsync -> contact = await Store.GetByIdAsync(Id).
+Line 38-41: GoBack -> NavigateTo /contacts.
+
+File: phonemanagement\\Properties\\launchSettings.json
+Line 1-24: JSON profiles -> Ορίζει run profiles.
+Line 8: applicationUrl http://localhost:5053 -> Το port του http profile.
+Line 17: applicationUrl https://localhost:7247;http://localhost:5053 -> Το port του https profile + http.
+
+File: phonemanagement\\appsettings.Development.json
+Line 2-7: Logging -> Log levels.
+Line 8-11: Firebase -> Έχει μείνει config από παλιότερο Firebase πείραμα, δεν χρησιμοποιείται πλέον στο storage.
+Line 12-14: ConnectionStrings.DefaultConnection -> Εδώ είναι το LocalDB/LOCALHOST που θα χρησιμοποιήσει το EF Core.
+
+File: phonemanagement\\phonemanagement.csproj
+Line 1: Microsoft.NET.Sdk.Web -> Web project.
+Line 4: net9.0 -> Target framework.
+Line 9-22: PackageReferences -> EF Core SQL Server + Tools/Design + Swashbuckle + άλλα packages.
+Line 25-26: Folder Include -> placeholder folder.
+
+File: dotnet-tools.json
+Line 1-12: Local tool manifest -> Δηλώνει dotnet-ef 9.0.5 ώστε σε άλλο PC να κάνεις dotnet tool restore και να έχεις migrations commands.
+
