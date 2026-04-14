@@ -1,8 +1,13 @@
-@page "/view-contact/{Id:int}" @* route me parameter Id *@
-@using PhoneBookApp.Models @* xrisimopoiei to Contact model *@
-@inject NavigationManager Nav @* navigation *@
-@inject phonemanagement.Services.IContactsStore Store @* store gia load apo SQL *@
-@rendermode InteractiveServer  @* xreiazetai gia @onclick button *@
+@* route me parameter Id *@
+@page "/view-contact/{Id:int}"
+@* xrisimopoiei to Contact model *@
+@using PhoneBookApp.Models
+@* navigation *@
+@inject NavigationManager Nav
+@* store gia load apo SQL *@
+@inject phonemanagement.Services.IContactsStore Store
+@* xreiazetai gia @onclick button *@
+@rendermode InteractiveServer 
 
 <h3>Contact Details</h3> @* titlos selidas *@
 

@@ -1,8 +1,13 @@
-@page "/add-contact" @* route gia ti selida add *@
-@using PhoneBookApp.Models @* xrisimopoiei to Contact model *@
-@inject NavigationManager Nav @* navigation metaksy selidon *@
-@inject phonemanagement.Services.IContactsStore Store @* store pou grafei stin SQL *@
-@rendermode InteractiveServer @* xreiazetai gia na doulepsei to form submit *@
+@* route gia ti selida add *@
+@page "/add-contact"
+@* xrisimopoiei to Contact model *@
+@using PhoneBookApp.Models
+@* navigation metaksy selidon *@
+@inject NavigationManager Nav
+@* store pou grafei stin SQL *@
+@inject phonemanagement.Services.IContactsStore Store
+@* xreiazetai gia na doulepsei to form submit *@
+@rendermode InteractiveServer
 
 <h3>Add Contact</h3> @* titlos selidas *@
 
