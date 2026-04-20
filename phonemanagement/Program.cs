@@ -1,14 +1,30 @@
 using PhoneBookApp.Models; // fernei to Contact model pou xrisimoipoioume se API/UI
 using phonemanagement.Components; // fernei to Blazor App component (UI root)
 using phonemanagement.Data; // fernei AppDbContext + DbSeeder gia SQL/EF
+using phonemanagement.Dtos.Auth;
+using phonemanagement.Dtos.Tasks;
+using phonemanagement.Models;
 using phonemanagement.Services; // fernei IContactsStore + SqlContactsStore (CRUD layer)
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore; // EF Core APIs (UseSqlServer, MigrateAsync, klt)
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args); // ftiaxnei ton ASP.NET Core builder (config + DI)
 
 //Razor Components // energopoiei Blazor Server (Razor Components) me interactivity
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents(); // epitrepei events (@onclick, forms) na doulevoun server-side
+
+builder.Services.AddScoped(sp =>
+{
+    var nav = sp.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
+    return new HttpClient { BaseAddress = new Uri(nav.BaseUri) };
+});
+builder.Services.AddScoped<ClientAuthState>();
+builder.Services.AddScoped<ApiClient>();
 
 //gia Postman // CORS policy gia na mporoun external clients na kanoun requests
 builder.Services.AddCors(options =>
@@ -21,7 +37,57 @@ builder.Services.AddCors(options =>
 
 //API testing // swagger/openapi gia dokimes tou API
 builder.Services.AddEndpointsApiExplorer(); 
-builder.Services.AddSwaggerGen(); // ftiaxnei swagger docs + swagger UI
+builder.Services.AddSwaggerGen(options =>
+{
+    var scheme = new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Paste the JWT access token here."
+    };
+
+    options.AddSecurityDefinition("Bearer", scheme);
+    options.AddSecurityRequirement(doc =>
+    {
+        var req = new OpenApiSecurityRequirement();
+        req.Add(new OpenApiSecuritySchemeReference("Bearer", doc, null), new List<string>());
+        return req;
+    });
+}); // ftiaxnei swagger docs + swagger UI (me JWT)
+
+builder.Services.AddAuthorization();
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
+                  ?? throw new InvalidOperationException("Missing Jwt configuration section.");
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwt.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwt.Audience,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)),
+            ClockSkew = TimeSpan.FromSeconds(30)
+        };
+    });
+
+builder.Services.AddOptions<JwtOptions>()
+    .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
+    .ValidateDataAnnotations()
+    .Validate(o => !string.IsNullOrWhiteSpace(o.SigningKey) && o.SigningKey.Length >= 32,
+        "Jwt:SigningKey must be at least 32 characters.")
+    .ValidateOnStart();
+
+builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
+builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.PasswordHasher<phonemanagement.Models.AppUser>>();
 
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection"); // connection string (LocalDB/LOCALHOST) apo appsettings
@@ -60,6 +126,22 @@ app.UseHttpsRedirection(); // redirect se https (opou yparxei)
 app.UseCors(); // energopoiei CORS policy
 
 app.UseAntiforgery(); // energopoiei CSRF protection gia UI
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+var meApi = app.MapGroup("/api").RequireAuthorization();
+meApi.MapGet("/me", (ClaimsPrincipal user) =>
+{
+    var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub");
+    var email = user.FindFirstValue(ClaimTypes.Email) ?? user.FindFirstValue("email") ?? user.Identity?.Name;
+    return Results.Ok(new
+    {
+        userId,
+        email
+    });
+});
+
 
 //Static files
 app.MapStaticAssets(); // servirei static assets (wwwroot)
@@ -116,6 +198,130 @@ contactsApi.MapDelete("/{id:int}", async (int id, IContactsStore store) =>
 {
     var ok = await store.DeleteAsync(id); // DELETE apo SQL
     return ok ? Results.NoContent() : Results.NotFound(); // 204 h 404
+});
+
+static Guid GetUserId(ClaimsPrincipal user)
+{
+    var raw = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub");
+    return Guid.TryParse(raw, out var id) ? id : throw new InvalidOperationException("Missing/invalid user id claim.");
+}
+
+var authApi = app.MapGroup("/api/auth");
+
+authApi.MapPost("/register", async (
+    RegisterRequest req,
+    AppDbContext db,
+    Microsoft.AspNetCore.Identity.PasswordHasher<AppUser> hasher,
+    IJwtTokenService jwt) =>
+{
+    var email = (req.Email ?? "").Trim().ToLowerInvariant();
+    if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(req.Password) || req.Password.Length < 6)
+        return Results.BadRequest(new { message = "Invalid email/password." });
+
+    var exists = await db.Users.AnyAsync(u => u.Email == email);
+    if (exists)
+        return Results.Conflict(new { message = "Email already registered." });
+
+    var user = new AppUser
+    {
+        Email = email,
+        PasswordHash = "TEMP"
+    };
+    user.PasswordHash = hasher.HashPassword(user, req.Password);
+
+    db.Users.Add(user);
+    await db.SaveChangesAsync();
+
+    var (token, expiresAtUtc) = jwt.CreateAccessToken(user);
+    return Results.Ok(new AuthResponse(token, expiresAtUtc, user.Email));
+});
+
+authApi.MapPost("/login", async (
+    LoginRequest req,
+    AppDbContext db,
+    Microsoft.AspNetCore.Identity.PasswordHasher<AppUser> hasher,
+    IJwtTokenService jwt) =>
+{
+    var email = (req.Email ?? "").Trim().ToLowerInvariant();
+    if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(req.Password))
+        return Results.BadRequest(new { message = "Invalid email/password." });
+
+    var user = await db.Users.SingleOrDefaultAsync(u => u.Email == email);
+    if (user is null)
+        return Results.Unauthorized();
+
+    var verified = hasher.VerifyHashedPassword(user, user.PasswordHash, req.Password);
+    if (verified == Microsoft.AspNetCore.Identity.PasswordVerificationResult.Failed)
+        return Results.Unauthorized();
+
+    var (token, expiresAtUtc) = jwt.CreateAccessToken(user);
+    return Results.Ok(new AuthResponse(token, expiresAtUtc, user.Email));
+});
+
+var tasksApi = app.MapGroup("/api/tasks").RequireAuthorization();
+
+tasksApi.MapGet("/", async (ClaimsPrincipal user, AppDbContext db) =>
+{
+    var userId = GetUserId(user);
+    var tasks = await db.Tasks
+        .Where(t => t.UserId == userId)
+        .OrderByDescending(t => t.CreatedAtUtc)
+        .Select(t => new TaskResponse(t.Id, t.Title, t.Notes, t.IsCompleted, t.DueAtUtc, t.CreatedAtUtc))
+        .ToListAsync();
+
+    return Results.Ok(tasks);
+});
+
+tasksApi.MapPost("/", async (ClaimsPrincipal user, TaskCreateRequest req, AppDbContext db) =>
+{
+    var userId = GetUserId(user);
+    if (string.IsNullOrWhiteSpace(req.Title))
+        return Results.BadRequest(new { message = "Title is required." });
+
+    var task = new TaskItem
+    {
+        Title = req.Title.Trim(),
+        Notes = req.Notes,
+        DueAtUtc = req.DueAtUtc,
+        UserId = userId
+    };
+
+    db.Tasks.Add(task);
+    await db.SaveChangesAsync();
+
+    return Results.Created($"/api/tasks/{task.Id}",
+        new TaskResponse(task.Id, task.Title, task.Notes, task.IsCompleted, task.DueAtUtc, task.CreatedAtUtc));
+});
+
+tasksApi.MapPut("/{id:int}", async (ClaimsPrincipal user, int id, TaskUpdateRequest req, AppDbContext db) =>
+{
+    var userId = GetUserId(user);
+    var task = await db.Tasks.SingleOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+    if (task is null)
+        return Results.NotFound();
+
+    if (string.IsNullOrWhiteSpace(req.Title))
+        return Results.BadRequest(new { message = "Title is required." });
+
+    task.Title = req.Title.Trim();
+    task.Notes = req.Notes;
+    task.IsCompleted = req.IsCompleted;
+    task.DueAtUtc = req.DueAtUtc;
+
+    await db.SaveChangesAsync();
+    return Results.Ok(new TaskResponse(task.Id, task.Title, task.Notes, task.IsCompleted, task.DueAtUtc, task.CreatedAtUtc));
+});
+
+tasksApi.MapDelete("/{id:int}", async (ClaimsPrincipal user, int id, AppDbContext db) =>
+{
+    var userId = GetUserId(user);
+    var task = await db.Tasks.SingleOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+    if (task is null)
+        return Results.NotFound();
+
+    db.Tasks.Remove(task);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
 });
 
 //Blazor app

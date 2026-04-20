@@ -1,0 +1,60 @@
+﻿@page "/login"
+@rendermode InteractiveServer
+
+@using phonemanagement.Dtos.Auth
+@inject ApiClient Api
+@inject ClientAuthState Auth
+@inject NavigationManager Nav
+
+<h3>Login</h3>
+
+<EditForm Model="model" OnValidSubmit="LoginAsync" FormName="login-form">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label class="form-label">Email</label>
+        <InputText class="form-control" @bind-Value="model.Email" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Password</label>
+        <InputText class="form-control" type="password" @bind-Value="model.Password" />
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="alert alert-danger">@error</div>
+    }
+
+    <button class="btn btn-primary" disabled="@busy">Login</button>
+    <a class="btn btn-link" href="/register">Create account</a>
+</EditForm>
+
+@code {
+    private LoginRequest model = new();
+    private bool busy;
+    private string? error;
+
+    private async Task LoginAsync()
+    {
+        busy = true;
+        error = null;
+        try
+        {
+            var res = await Api.PostAsync<LoginRequest, AuthResponse>("/api/auth/login", model);
+            if (res is null)
+            {
+                error = "Login failed. Check your credentials.";
+                return;
+            }
+
+            Auth.SetAccessToken(res.AccessToken);
+            Nav.NavigateTo("/");
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

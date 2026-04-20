@@ -1,0 +1,217 @@
+@page "/tasks"
+@rendermode InteractiveServer
+
+@using phonemanagement.Dtos.Tasks
+@inject ApiClient Api
+@inject ClientAuthState Auth
+@inject NavigationManager Nav
+
+<PageTitle>Tasks</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">My Tasks</h3>
+    <button class="btn btn-outline-secondary" @onclick="RefreshAsync">Refresh</button>
+</div>
+
+@if (!Auth.IsLoggedIn)
+{
+    <div class="alert alert-warning">
+        You must be logged in to view tasks.
+        <a class="btn btn-sm btn-primary ms-2" href="/login">Login</a>
+    </div>
+}
+else if (loading)
+{
+    <p class="text-muted">Loading…</p>
+}
+else
+{
+    <div class="card p-3 mb-3">
+        <EditForm Model="create" OnValidSubmit="CreateAsync" FormName="task-create-form">
+            <DataAnnotationsValidator />
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-6">
+                    <label class="form-label">Title</label>
+                    <InputText class="form-control" @bind-Value="create.Title" />
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label">Due (UTC)</label>
+                    <InputDate class="form-control" @bind-Value="dueDate" />
+                </div>
+                <div class="col-12 col-md-2">
+                    <button class="btn btn-success w-100" disabled="@busy">Add</button>
+                </div>
+            </div>
+        </EditForm>
+
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="alert alert-danger mt-3 mb-0">@error</div>
+        }
+    </div>
+
+    <ul class="list-group">
+        @foreach (var t in tasks)
+        {
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="fw-semibold">@t.Title</div>
+                    <div class="text-muted small">
+                        Created: @t.CreatedAtUtc.ToString("u")
+                        @if (t.DueAtUtc is not null)
+                        {
+                            <span class="ms-2">Due: @t.DueAtUtc.Value.ToString("u")</span>
+                        }
+                    </div>
+                </div>
+                <span class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-success" @onclick="() => ToggleCompleteAsync(t)" disabled="@busy">
+                        @(t.IsCompleted ? "Reopen" : "Done")
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(t.Id)" disabled="@busy">
+                        Delete
+                    </button>
+                </span>
+            </li>
+        }
+    </ul>
+
+    @if (!tasks.Any())
+    {
+        <p class="text-muted mt-3 mb-0">No tasks yet.</p>
+    }
+}
+
+@code {
+    private bool loading = true;
+    private bool busy;
+    private string? error;
+
+    private List<TaskResponse> tasks = new();
+    private TaskCreateRequest create = new();
+    private DateTime? dueDate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Auth.Changed += OnAuthChanged;
+        if (Auth.IsLoggedIn)
+            await RefreshAsync();
+        else
+            loading = false;
+    }
+
+    private async void OnAuthChanged()
+    {
+        if (!Auth.IsLoggedIn)
+        {
+            tasks = new();
+            loading = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        await RefreshAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RefreshAsync()
+    {
+        if (!Auth.IsLoggedIn)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        loading = true;
+        error = null;
+        try
+        {
+            var res = await Api.GetAsync<List<TaskResponse>>("/api/tasks");
+            tasks = res ?? new();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task CreateAsync()
+    {
+        busy = true;
+        error = null;
+        try
+        {
+            create.DueAtUtc = dueDate is null ? null : DateTime.SpecifyKind(dueDate.Value.Date, DateTimeKind.Utc);
+            var created = await Api.PostAsync<TaskCreateRequest, TaskResponse>("/api/tasks", create);
+            if (created is null)
+            {
+                error = "Create failed. Are you logged in?";
+                return;
+            }
+
+            create = new TaskCreateRequest();
+            dueDate = null;
+            await RefreshAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task ToggleCompleteAsync(TaskResponse t)
+    {
+        busy = true;
+        error = null;
+        try
+        {
+            var update = new TaskUpdateRequest
+            {
+                Title = t.Title,
+                Notes = t.Notes,
+                DueAtUtc = t.DueAtUtc,
+                IsCompleted = !t.IsCompleted
+            };
+
+            var updated = await Api.PutAsync<TaskUpdateRequest, TaskResponse>($"/api/tasks/{t.Id}", update);
+            if (updated is null)
+            {
+                error = "Update failed.";
+                return;
+            }
+
+            await RefreshAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        busy = true;
+        error = null;
+        try
+        {
+            var ok = await Api.DeleteAsync($"/api/tasks/{id}");
+            if (!ok)
+            {
+                error = "Delete failed.";
+                return;
+            }
+
+            await RefreshAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        Auth.Changed -= OnAuthChanged;
+    }
+}
+

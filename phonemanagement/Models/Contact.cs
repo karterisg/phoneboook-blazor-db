@@ -6,7 +6,10 @@
         public string? Name { get; set; } // onoma epafis 
         public string? Phone { get; set; } // tilefono 
         public string? Email { get; set; } // email 
-        public string Gender { get; set; } = "Male"; // filo
+        public string Gender { get; set; } = "Male"; // filo//default
 
+
+
+        public string? Age { get; set; } 
     }
 }

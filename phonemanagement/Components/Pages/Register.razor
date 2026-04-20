@@ -1,0 +1,64 @@
+@page "/register"
+@rendermode InteractiveServer
+
+@using phonemanagement.Dtos.Auth
+@inject ApiClient Api
+@inject ClientAuthState Auth
+@inject NavigationManager Nav
+
+<PageTitle>Register</PageTitle>
+
+<h3>Register</h3>
+
+<EditForm Model="model" OnValidSubmit="RegisterAsync" FormName="register-form">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label class="form-label">Email</label>
+        <InputText class="form-control" @bind-Value="model.Email" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Password</label>
+        <InputText class="form-control" type="password" @bind-Value="model.Password" />
+        <div class="form-text">Min 6 characters.</div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="alert alert-danger">@error</div>
+    }
+
+    <button class="btn btn-primary" disabled="@busy">Create account</button>
+    <a class="btn btn-link" href="/login">Already have an account?</a>
+</EditForm>
+
+@code {
+    private RegisterRequest model = new();
+    private bool busy;
+    private string? error;
+
+    private async Task RegisterAsync()
+    {
+        busy = true;
+        error = null;
+        try
+        {
+            var res = await Api.PostAsync<RegisterRequest, AuthResponse>("/api/auth/register", model);
+            if (res is null)
+            {
+                error = "Registration failed (email may already exist).";
+                return;
+            }
+
+            Auth.SetAccessToken(res.AccessToken);
+            Nav.NavigateTo("/");
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}
+
