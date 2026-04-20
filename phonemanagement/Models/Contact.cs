@@ -8,8 +8,5 @@
         public string? Email { get; set; } // email 
         public string Gender { get; set; } = "Male"; // filo//default
 
-
-
-        public string? Age { get; set; } 
     }
 }

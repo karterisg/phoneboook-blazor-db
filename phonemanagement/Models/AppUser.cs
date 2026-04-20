@@ -17,10 +17,5 @@ public sealed class AppUser
 
     public List<TaskItem> Tasks { get; set; } = new();
 
-    public string TimeAgo => (DateTime.UtcNow - CreatedAtUtc).TotalDays < 1
-        ? "Just now"
-        : $"{(int)(DateTime.UtcNow - CreatedAtUtc).TotalDays} day(s) ago";
-
-
 }
 

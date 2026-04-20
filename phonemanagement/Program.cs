@@ -6,7 +6,7 @@ using phonemanagement.Dtos.Tasks;
 using phonemanagement.Models;
 using phonemanagement.Services; // fernei IContactsStore + SqlContactsStore (CRUD layer)
 using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.JwtBearer; 
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore; // EF Core APIs (UseSqlServer, MigrateAsync, klt)
 using Microsoft.IdentityModel.Tokens;
