@@ -1,8 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace phonemanagement.Dtos.Auth;
+namespace phonemanagement.Dtos.Users;
 
-public sealed class RegisterRequest
+public sealed class AdminUpdateUserRequest
 {
     [Required, MaxLength(200)]
     public string Name { get; set; } = "";
@@ -15,8 +15,5 @@ public sealed class RegisterRequest
 
     [Required, EmailAddress, MaxLength(320)]
     public string Email { get; set; } = "";
-
-    [Required, MinLength(6), MaxLength(200)]
-    public string Password { get; set; } = "";
 }
 

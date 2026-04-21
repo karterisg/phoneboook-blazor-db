@@ -1,0 +1,73 @@
+@page "/contact/{Id:guid}"
+@rendermode InteractiveServer
+
+@using phonemanagement.Dtos.Directory
+@inject ApiClient Api
+@inject ClientAuthState Auth
+@inject NavigationManager Nav
+
+<PageTitle>Contact</PageTitle>
+
+@if (!authReady)
+{
+    <p class="text-muted">Loading…</p>
+}
+else if (!Auth.IsLoggedIn)
+{
+    <div class="alert alert-warning">
+        You must be logged in.
+        <a class="btn btn-sm btn-primary ms-2" href="/login">Login</a>
+    </div>
+}
+else if (loading)
+{
+    <p class="text-muted">Loading…</p>
+}
+else if (contact is null)
+{
+    <div class="alert alert-danger">Contact not found.</div>
+}
+else
+{
+    <h3>@contact.Name</h3>
+    <div class="card p-3 mb-3">
+        <div><strong>Email:</strong> @contact.Email</div>
+        <div><strong>Phone:</strong> @contact.Phone</div>
+        <div><strong>Gender:</strong> @contact.Gender</div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="/contacts">Back</a>
+        @if (Auth.IsAdmin)
+        {
+            <a class="btn btn-warning" href="@($"/edit-user/{Id}")">Edit</a>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private bool authReady;
+    private bool loading = true;
+    private DirectoryContactResponse? contact;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Auth.LoadAsync();
+        authReady = true;
+
+        if (!Auth.IsLoggedIn)
+        {
+            loading = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        contact = await Api.GetAsync<DirectoryContactResponse>($"/api/directory/{Id}");
+        loading = false;
+        await InvokeAsync(StateHasChanged);
+    }
+}
+

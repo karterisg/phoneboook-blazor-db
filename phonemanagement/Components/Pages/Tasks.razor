@@ -13,7 +13,11 @@
     <button class="btn btn-outline-secondary" @onclick="RefreshAsync">Refresh</button>
 </div>
 
-@if (!Auth.IsLoggedIn)
+@if (!authReady)
+{
+    <p class="text-muted">Loading…</p>
+}
+else if (!Auth.IsLoggedIn)
 {
     <div class="alert alert-warning">
         You must be logged in to view tasks.
@@ -86,18 +90,32 @@ else
     private bool loading = true;
     private bool busy;
     private string? error;
+    private bool authReady;
 
     private List<TaskResponse> tasks = new();
     private TaskCreateRequest create = new();
     private DateTime? dueDate;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync()
     {
         Auth.Changed += OnAuthChanged;
+        return Task.CompletedTask;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        await Auth.LoadAsync();
+        authReady = true;
+
         if (Auth.IsLoggedIn)
             await RefreshAsync();
         else
             loading = false;
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private async void OnAuthChanged()

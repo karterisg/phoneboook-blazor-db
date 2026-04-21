@@ -1,0 +1,165 @@
+@page "/users"
+@rendermode InteractiveServer
+
+@using phonemanagement.Dtos.Users
+@inject ApiClient Api
+@inject ClientAuthState Auth
+@inject NavigationManager Nav
+
+<PageTitle>Users</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">Users</h3>
+    <button class="btn btn-outline-secondary" @onclick="RefreshAsync" disabled="@busy">Refresh</button>
+</div>
+
+@if (!authReady)
+{
+    <p class="text-muted">Loading…</p>
+}
+else if (!Auth.IsLoggedIn)
+{
+    <div class="alert alert-warning">
+        You must be logged in.
+        <a class="btn btn-sm btn-primary ms-2" href="/login">Login</a>
+    </div>
+}
+else if (!Auth.IsAdmin)
+{
+    <div class="alert alert-danger">
+        Admin only.
+    </div>
+}
+else if (loading)
+{
+    <p class="text-muted">Loading…</p>
+}
+else
+{
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="alert alert-danger">@error</div>
+    }
+
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead>
+            <tr>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Created</th>
+                <th>Tasks</th>
+                <th style="width: 1%"></th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var u in users)
+            {
+                <tr>
+                    <td>@u.Email</td>
+                    <td><span class="badge text-bg-secondary">@u.Role</span></td>
+                    <td class="text-muted">@u.CreatedAtUtc.ToString("u")</td>
+                    <td>@u.TaskCount</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-danger"
+                                disabled="@busy || u.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase)"
+                                @onclick="() => DeleteAsync(u)">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    @if (!users.Any())
+    {
+        <p class="text-muted mb-0">No users.</p>
+    }
+}
+
+@code {
+    private bool authReady;
+    private bool loading = true;
+    private bool busy;
+    private string? error;
+    private List<UserResponse> users = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        await Auth.LoadAsync();
+        authReady = true;
+
+        if (!Auth.IsLoggedIn)
+        {
+            loading = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        if (!Auth.IsAdmin)
+        {
+            loading = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        await RefreshAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RefreshAsync()
+    {
+        if (!Auth.IsLoggedIn)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+        if (!Auth.IsAdmin)
+        {
+            Nav.NavigateTo("/contacts");
+            return;
+        }
+
+        loading = true;
+        error = null;
+        try
+        {
+            var res = await Api.GetAsync<List<UserResponse>>("/api/users");
+            users = res ?? new();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task DeleteAsync(UserResponse u)
+    {
+        if (!Auth.IsAdmin)
+            return;
+
+        busy = true;
+        error = null;
+        try
+        {
+            var ok = await Api.DeleteAsync($"/api/users/{u.Id}");
+            if (!ok)
+            {
+                error = "Delete failed.";
+                return;
+            }
+
+            await RefreshAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}
+

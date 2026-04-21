@@ -29,6 +29,10 @@ public sealed class AppDbContext : DbContext // o EF Core DbContext pou antistoi
         user.HasKey(u => u.Id);
         user.Property(u => u.Email).HasMaxLength(320).IsRequired();
         user.HasIndex(u => u.Email).IsUnique();
+        user.Property(u => u.Name).HasMaxLength(200).IsRequired();
+        user.Property(u => u.Phone).HasMaxLength(50).IsRequired();
+        user.Property(u => u.Gender).HasMaxLength(20).IsRequired();
+        user.Property(u => u.Role).HasMaxLength(50).IsRequired();
         user.Property(u => u.PasswordHash).HasMaxLength(500).IsRequired();
         user.Property(u => u.CreatedAtUtc).IsRequired();
 

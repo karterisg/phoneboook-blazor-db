@@ -2,6 +2,7 @@
 @using PhoneBookApp.Models
 @inject phonemanagement.Services.IContactsStore Store
 @inject NavigationManager Nav
+@inject phonemanagement.Services.ClientAuthState Auth
 @rendermode InteractiveServer
 
 <PageTitle>Phone Directory</PageTitle>
@@ -100,6 +101,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await Auth.LoadAsync();
         await LoadAsync();
     }
 
@@ -116,9 +118,31 @@
         loading = false;
     }
 
-    private void GoContacts() => Nav.NavigateTo("/contacts");
-    private void GoAdd() => Nav.NavigateTo("/add-contact");
-    private void GoView(int id) => Nav.NavigateTo($"/view-contact/{id}");
+    private void GoContacts()
+    {
+        Nav.NavigateTo(Auth.IsLoggedIn ? "/contacts" : "/login");
+    }
+
+    private void GoAdd()
+    {
+        if (!Auth.IsLoggedIn)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+        if (!Auth.IsAdmin)
+        {
+            Nav.NavigateTo("/contacts");
+            return;
+        }
+
+        Nav.NavigateTo("/add-contact");
+    }
+
+    private void GoView(int id)
+    {
+        Nav.NavigateTo(Auth.IsLoggedIn ? $"/view-contact/{id}" : "/login");
+    }
 
     private void GoSearch()
     {

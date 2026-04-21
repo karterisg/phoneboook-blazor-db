@@ -6,12 +6,17 @@
 @inject NavigationManager Nav
 @* store gia load apo SQL *@
 @inject phonemanagement.Services.IContactsStore Store
+@inject phonemanagement.Services.ClientAuthState Auth
 @* xreiazetai gia @onclick button *@
 @rendermode InteractiveServer 
 
 <h3>Contact Details</h3> @* titlos selidas *@
 
-@if (contact == null) @* an den vrethei, deikse error *@
+@if (!authReady)
+{
+    <p class="text-muted">Loading…</p>
+}
+else if (contact == null) @* an den vrethei, deikse error *@
 {
     <p class="text-danger">Contact not found!</p> @* minima otan den yparxei contact *@
 }
@@ -32,10 +37,23 @@ else
     public int Id { get; set; } @* to Id pou theloume na doume *@
 
     private Contact? contact; @* to contact pou fortonoume apo SQL *@
+    private bool authReady;
 
-    protected override async Task OnInitializedAsync() @* trexei otan anoigei i selida *@
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     { @* arxi init *@
+        if (!firstRender)
+            return;
+
+        await Auth.LoadAsync();
+        if (!Auth.IsLoggedIn)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
         contact = await Store.GetByIdAsync(Id); @* SELECT apo SQL me to Id *@
+        authReady = true;
+        await InvokeAsync(StateHasChanged);
     } @* telos init *@
 
     void GoBack() @* handler gia to back button *@

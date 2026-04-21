@@ -1,16 +1,27 @@
 @page "/contacts"
-@using PhoneBookApp.Models
 @inject NavigationManager Nav
-@inject phonemanagement.Services.IContactsStore Store
+@inject phonemanagement.Services.ApiClient Api
+@inject phonemanagement.Services.ClientAuthState Auth
 @rendermode InteractiveServer
+@using phonemanagement.Dtos.Directory
 
 <h3>Phone Directory</h3>
 
+@if (!authReady)
+{
+    <p class="text-muted">Loading…</p>
+    return;
+}
+
 <div class="mb-3">
-    <button class="btn btn-success me-2" @onclick="Add">Add Contact</button>
     <button class="btn btn-primary me-2" @onclick="Search">Search</button>
     <button class="btn btn-secondary me-2" @onclick="ClearSearch">Clear</button>
     <button class="btn btn-info me-2" @onclick="Refresh">Refresh</button>
+    @if (canEdit)
+    {
+        <a class="btn btn-success me-2" href="/add-user">Add Contact</a>
+        <a class="btn btn-outline-dark" href="/users">Manage users</a>
+    }
 </div>
 
 <input class="form-control mb-2"
@@ -31,8 +42,8 @@
         Gender @SortIndicator(SortField.Gender)
     </button>
 
-    <button class="btn btn-outline-dark me-2" @onclick="() => ToggleSort(SortField.Id)">
-        Id @SortIndicator(SortField.Id)
+    <button class="btn btn-outline-dark me-2" @onclick="() => ToggleSort(SortField.Email)">
+        Email @SortIndicator(SortField.Email)
     </button>
 
     <button class="btn btn-warning me-2" @onclick="ClearSort">Clear Sort</button>
@@ -47,21 +58,17 @@
             </span>
 
             <span>
-                @contact.Name - @contact.Phone
+                @contact.Name - @contact.Phone (@contact.Email)
             </span>
 
-            <span>
-                <button class="btn btn-sm btn-warning me-2" @onclick="() => Edit(contact.Id)">
-                    Edit
-                </button>
+            <span class="d-flex gap-2">
+                <a class="btn btn-sm btn-outline-info" href="@($"/contact/{contact.Id}")">View</a>
 
-                <button class="btn btn-sm btn-danger me-2" @onclick="() => Delete(contact.Id)">
-                    Delete
-                </button>
-
-                <button class="btn btn-sm btn-info" @onclick="() => View(contact.Id)">
-                    View
-                </button>
+                @if (canEdit)
+                {
+                    <a class="btn btn-sm btn-warning" href="@($"/edit-user/{contact.Id}")">Edit</a>
+                    <button class="btn btn-sm btn-danger" @onclick="() => DeleteUserAsync(contact.Id)" disabled="@busy">Delete</button>
+                }
             </span>
         </li>
     }
@@ -78,8 +85,11 @@
 </div>
 
 @code {
-    private List<Contact> contacts = new();
+    private List<DirectoryContactResponse> contacts = new();
     private string searchText = "";
+    private bool canEdit;
+    private bool authReady;
+    private bool busy;
 
     private SortField? sortField = null;
     private SortDirection sortDirection = SortDirection.Asc;
@@ -94,8 +104,20 @@
         }
     }
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (!firstRender)
+            return;
+
+        await Auth.LoadAsync();
+        if (!Auth.IsLoggedIn)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        canEdit = Auth.IsAdmin;
+
         // Support deep link from Home quick search: /contacts?search=...
         var uri = new Uri(Nav.Uri);
         var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
@@ -104,32 +126,14 @@
             searchText = q.ToString();
         }
 
-        contacts = await Store.GetAllAsync();
+        contacts = await LoadDirectoryAsync();
         if (!string.IsNullOrWhiteSpace(searchText))
         {
             await Search();
         }
-    }
 
-    async Task Delete(int id)
-    {
-        await Store.DeleteAsync(id);
-        await Refresh();
-    }
-
-    void Edit(int id)
-    {
-        Nav.NavigateTo($"/edit-contact/{id}");
-    }
-
-    void Add()
-    {
-        Nav.NavigateTo("/add-contact");
-    }
-
-    void View(int id)
-    {
-        Nav.NavigateTo($"/view-contact/{id}");
+        authReady = true;
+        await InvokeAsync(StateHasChanged);
     }
 
 
@@ -139,9 +143,20 @@
 
     async Task Search()
     {
-        contacts = string.IsNullOrWhiteSpace(searchText)
-            ? await Store.GetAllAsync()
-            : await Store.SearchAsync(searchText);
+        var all = await LoadDirectoryAsync();
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            contacts = all;
+        }
+        else
+        {
+            var q = searchText.Trim();
+            contacts = all.Where(c =>
+                    (c.Name?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (c.Phone?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (c.Email?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false))
+                .ToList();
+        }
 
         ApplySort();
     }
@@ -187,8 +202,8 @@
             (SortField.Gender, SortDirection.Asc) => contacts.OrderBy(c => c.Gender).ToList(),
             (SortField.Gender, SortDirection.Desc) => contacts.OrderByDescending(c => c.Gender).ToList(),
 
-            (SortField.Id, SortDirection.Asc) => contacts.OrderBy(c => c.Id).ToList(),
-            (SortField.Id, SortDirection.Desc) => contacts.OrderByDescending(c => c.Id).ToList(),
+            (SortField.Email, SortDirection.Asc) => contacts.OrderBy(c => c.Email).ToList(),
+            (SortField.Email, SortDirection.Desc) => contacts.OrderByDescending(c => c.Email).ToList(),
 
             _ => contacts
         };
@@ -203,8 +218,29 @@
 
     async Task Refresh()
     {
-        contacts = await Store.GetAllAsync();
+        contacts = await LoadDirectoryAsync();
         ApplySort();
+    }
+
+    private async Task DeleteUserAsync(Guid id)
+    {
+        if (!canEdit) return;
+        busy = true;
+        try
+        {
+            await Api.DeleteAsync($"/api/users/{id}");
+            await Refresh();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task<List<DirectoryContactResponse>> LoadDirectoryAsync()
+    {
+        var res = await Api.GetAsync<List<DirectoryContactResponse>>("/api/directory");
+        return res ?? new();
     }
 
     enum SortField
@@ -212,7 +248,7 @@
         Name,
         Phone,
         Gender,
-        Id
+        Email
     }
 
     enum SortDirection

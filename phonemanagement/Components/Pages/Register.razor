@@ -15,6 +15,24 @@
     <ValidationSummary />
 
     <div class="mb-3">
+        <label class="form-label">Name</label>
+        <InputText class="form-control" @bind-Value="model.Name" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Phone</label>
+        <InputText class="form-control" @bind-Value="model.Phone" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Gender</label>
+        <InputSelect class="form-control" @bind-Value="model.Gender">
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+        </InputSelect>
+    </div>
+
+    <div class="mb-3">
         <label class="form-label">Email</label>
         <InputText class="form-control" @bind-Value="model.Email" />
     </div>
@@ -52,8 +70,8 @@
                 return;
             }
 
-            Auth.SetAccessToken(res.AccessToken);
-            Nav.NavigateTo("/");
+            // Requirement: after register, go to login (no auto-login)
+            Nav.NavigateTo("/login");
         }
         finally
         {

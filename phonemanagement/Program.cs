@@ -11,6 +11,7 @@ using System.Security.Claims;
 using Microsoft.EntityFrameworkCore; // EF Core APIs (UseSqlServer, MigrateAsync, klt)
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
 var builder = WebApplication.CreateBuilder(args); // ftiaxnei ton ASP.NET Core builder (config + DI)
 
@@ -23,6 +24,7 @@ builder.Services.AddScoped(sp =>
     var nav = sp.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
     return new HttpClient { BaseAddress = new Uri(nav.BaseUri) };
 });
+builder.Services.AddScoped<ProtectedSessionStorage>();
 builder.Services.AddScoped<ClientAuthState>();
 builder.Services.AddScoped<ApiClient>();
 
@@ -58,7 +60,10 @@ builder.Services.AddSwaggerGen(options =>
     });
 }); // ftiaxnei swagger docs + swagger UI (me JWT)
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+});
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -86,8 +91,8 @@ builder.Services.AddOptions<JwtOptions>()
         "Jwt:SigningKey must be at least 32 characters.")
     .ValidateOnStart();
 
-builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
-builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.PasswordHasher<phonemanagement.Models.AppUser>>();
+builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>(); // DI gia JWT token creation (JwtTokenService implementei ego, IJwtTokenService to interface tou)
+builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.PasswordHasher<phonemanagement.Models.AppUser>>(); // DI gia password hashing (xrisimopoioume to built-in PasswordHasher apo ASP.NET Core Identity, an kai den xrisimopoioume olokliro Identity)
 
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection"); // connection string (LocalDB/LOCALHOST) apo appsettings
@@ -110,8 +115,9 @@ if (!string.IsNullOrWhiteSpace(connectionString)) // extra check
 {
     using var scope = app.Services.CreateScope(); // ftiaxnei scope gia na parei DbContext ektos request
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>(); // pairnei DbContext
+    var hasher = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.PasswordHasher<AppUser>>();
     await db.Database.MigrateAsync(); // efarmozei migrations (schema up to date)
-    await DbSeeder.SeedAsync(db); // vazei arxika data an den yparxoun contacts
+    await DbSeeder.SeedAsync(db, hasher); // vazei arxika data + admin user
 }
 
 //Middleware pipeline // seira middlewares pou trexoun se kathe request
@@ -154,6 +160,8 @@ app.UseSwaggerUI(); // expose swagger UI
 var contactsApi = app.MapGroup("/api/contacts"); // base route group gia contacts API
 
 
+contactsApi.RequireAuthorization();
+
 
 //GET all
 contactsApi.MapGet("/", async (IContactsStore store) =>
@@ -181,7 +189,7 @@ contactsApi.MapPost("/", async (Contact contact, IContactsStore store) =>
 {
     var created = await store.AddAsync(contact); // INSERT stin SQL (Id identity)
     return Results.Created($"/api/contacts/{created.Id}", created); // 201 Created
-});
+}).RequireAuthorization("AdminOnly");
 
 //UPDATE
 contactsApi.MapPut("/{id:int}", async (int id, Contact contact, IContactsStore store) =>
@@ -191,14 +199,14 @@ contactsApi.MapPut("/{id:int}", async (int id, Contact contact, IContactsStore s
 
     var ok = await store.UpdateAsync(contact); // UPDATE stin SQL
     return ok ? Results.Ok(contact) : Results.NotFound(); // 200 h 404
-});
+}).RequireAuthorization("AdminOnly");
 
 //DELETE
 contactsApi.MapDelete("/{id:int}", async (int id, IContactsStore store) =>
 {
     var ok = await store.DeleteAsync(id); // DELETE apo SQL
     return ok ? Results.NoContent() : Results.NotFound(); // 204 h 404
-});
+}).RequireAuthorization("AdminOnly");
 
 static Guid GetUserId(ClaimsPrincipal user)
 {
@@ -242,13 +250,22 @@ authApi.MapPost("/login", async (
     Microsoft.AspNetCore.Identity.PasswordHasher<AppUser> hasher,
     IJwtTokenService jwt) =>
 {
-    var email = (req.Email ?? "").Trim().ToLowerInvariant();
-    if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(req.Password))
-        return Results.BadRequest(new { message = "Invalid email/password." });
+    var identifier = (req.Identifier ?? "").Trim();
+    var email = identifier.ToLowerInvariant();
+    if (string.IsNullOrWhiteSpace(identifier) || string.IsNullOrWhiteSpace(req.Password))
+        return Results.BadRequest(new { message = "Invalid credentials." });
+
+    // Allow admin to login with "admin" as identifier
+    if (string.Equals(identifier, "admin", StringComparison.OrdinalIgnoreCase))
+        email = "admin@test.com";
 
     var user = await db.Users.SingleOrDefaultAsync(u => u.Email == email);
     if (user is null)
         return Results.Unauthorized();
+
+    // Password length rule exception: allow 5 chars only for admin ("admin")
+    if (req.Password.Length < 6 && !string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase))
+        return Results.BadRequest(new { message = "Invalid credentials." });
 
     var verified = hasher.VerifyHashedPassword(user, user.PasswordHash, req.Password);
     if (verified == Microsoft.AspNetCore.Identity.PasswordVerificationResult.Failed)

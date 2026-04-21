@@ -1,0 +1,108 @@
+@page "/add-user"
+@rendermode InteractiveServer
+
+@using phonemanagement.Dtos.Directory
+@using phonemanagement.Dtos.Users
+@inject ApiClient Api
+@inject ClientAuthState Auth
+@inject NavigationManager Nav
+
+<PageTitle>Add User</PageTitle>
+
+@if (!authReady)
+{
+    <p class="text-muted">Loading…</p>
+}
+else if (!Auth.IsLoggedIn)
+{
+    <div class="alert alert-warning">
+        You must be logged in.
+        <a class="btn btn-sm btn-primary ms-2" href="/login">Login</a>
+    </div>
+}
+else if (!Auth.IsAdmin)
+{
+    <div class="alert alert-danger">Admin only.</div>
+}
+else
+{
+    <h3>Add contact (create user)</h3>
+
+    <EditForm Model="model" OnValidSubmit="CreateAsync" FormName="add-user-form">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Name</label>
+            <InputText class="form-control" @bind-Value="model.Name" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Phone</label>
+            <InputText class="form-control" @bind-Value="model.Phone" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Gender</label>
+            <InputSelect class="form-control" @bind-Value="model.Gender">
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+            </InputSelect>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <InputText class="form-control" @bind-Value="model.Email" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Password</label>
+            <InputText class="form-control" type="password" @bind-Value="model.Password" />
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="alert alert-danger">@error</div>
+        }
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-success" disabled="@busy">Create</button>
+            <a class="btn btn-outline-secondary" href="/contacts">Cancel</a>
+        </div>
+    </EditForm>
+}
+
+@code {
+    private bool authReady;
+    private bool busy;
+    private string? error;
+    private AdminCreateUserRequest model = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Auth.LoadAsync();
+        authReady = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CreateAsync()
+    {
+        if (!Auth.IsAdmin) return;
+
+        busy = true;
+        error = null;
+        try
+        {
+            var created = await Api.PostAsync<AdminCreateUserRequest, DirectoryContactResponse>("/api/users", model);
+            if (created is null)
+            {
+                error = "Create failed.";
+                return;
+            }
+
+            Nav.NavigateTo("/contacts");
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}
+

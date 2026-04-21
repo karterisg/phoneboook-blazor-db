@@ -6,10 +6,17 @@
 @inject NavigationManager Nav
 @* store pou grafei stin SQL *@
 @inject phonemanagement.Services.IContactsStore Store
+@inject phonemanagement.Services.ClientAuthState Auth
 @* xreiazetai gia na doulepsei to form submit *@
 @rendermode InteractiveServer
 
 <h3>Add Contact</h3> @* titlos selidas *@
+
+@if (!authReady)
+{
+    <p class="text-muted">Loading…</p>
+    return;
+}
 
 <EditForm Model="contact" OnValidSubmit="Save"> @* form pou kanei bind sto contact kai sto submit kalei Save *@
     <InputText @bind-Value="contact.Name" class="form-control mb-2" placeholder="Name" /> @* input gia Name *@
@@ -27,9 +34,34 @@
 
 @code { @* code-behind tou component *@
     Contact contact = new Contact { Gender = "Male" }; @* arxiko model me default Gender *@
+    private bool authReady;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        await Auth.LoadAsync();
+        if (!Auth.IsLoggedIn)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+        if (!Auth.IsAdmin)
+        {
+            Nav.NavigateTo("/contacts");
+            return;
+        }
+
+        authReady = true;
+        await InvokeAsync(StateHasChanged);
+    }
 
     async Task Save() @* method pou kaleitai sto submit *@
     { @* arxi method *@
+        if (!Auth.IsAdmin)
+            return;
+
         await Store.AddAsync(contact); @* INSERT stin SQL mesw store *@
         Nav.NavigateTo("/contacts"); @* gurna piso sti lista *@
     } @* telos method *@

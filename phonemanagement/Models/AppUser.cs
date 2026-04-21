@@ -10,6 +10,18 @@ public sealed class AppUser
     [MaxLength(320)]
     public required string Email { get; set; }
 
+    [MaxLength(200)]
+    public string Name { get; set; } = "";
+
+    [MaxLength(50)]
+    public string Phone { get; set; } = "";
+
+    [MaxLength(20)]
+    public string Gender { get; set; } = "Male";
+
+    [MaxLength(50)]
+    public string Role { get; set; } = "User";
+
     [MaxLength(500)]
     public required string PasswordHash { get; set; }
 

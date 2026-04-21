@@ -6,12 +6,17 @@
 @inject NavigationManager Nav
 @* store pou diavazei/grafei stin SQL *@
 @inject phonemanagement.Services.IContactsStore Store
+@inject phonemanagement.Services.ClientAuthState Auth
 @* xreiazetai gia forms/events *@
 @rendermode InteractiveServer
 
 <h3>Edit Contact</h3> @* titlos selidas *@
 
-@if (contact != null) @* an fortothike to contact, deikse form *@
+@if (!authReady)
+{
+    <p class="text-muted">Loading…</p>
+}
+else if (contact != null) @* an fortothike to contact, deikse form *@
 {
     <EditForm Model="contact" OnValidSubmit="Update"> @* form gia update tou contact *@
         <InputText @bind-Value="contact.Name" class="form-control mb-2" /> @* edit Name *@
@@ -32,14 +37,35 @@
 
 
     Contact? contact; @* to model pou fortonoume apo SQL *@
+    private bool authReady;
 
-    protected override async Task OnInitializedAsync() @* trexei otan arxikopoieitai i selida *@
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     { @* arxi init *@
+        if (!firstRender)
+            return;
+
+        await Auth.LoadAsync();
+        if (!Auth.IsLoggedIn)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+        if (!Auth.IsAdmin)
+        {
+            Nav.NavigateTo("/contacts");
+            return;
+        }
+
         contact = await Store.GetByIdAsync(Id); @* SELECT contact apo SQL me to Id *@
+        authReady = true;
+        await InvokeAsync(StateHasChanged);
     } @* telos init *@
 
     async Task Update() @* trexei sto submit tou form *@
     { @* arxi update *@
+        if (!Auth.IsAdmin)
+            return;
+
         if (contact != null) @* safety check *@
         { @* arxi if *@
             await Store.UpdateAsync(contact); @* UPDATE stin SQL mesw store *@
