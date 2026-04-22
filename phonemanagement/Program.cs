@@ -345,9 +345,11 @@ tasksApi.MapDelete("/{id:int}", async (ClaimsPrincipal user, int id, AppDbContex
 
 var directoryApi = app.MapGroup("/api/directory").RequireAuthorization();
 
-directoryApi.MapGet("/", async (AppDbContext db) =>
+directoryApi.MapGet("/", async (ClaimsPrincipal user, AppDbContext db) =>
 {
+    var currentUserId = GetUserId(user);
     var rows = await db.Users.AsNoTracking()
+        .Where(u => u.Id != currentUserId)
         .Where(u => (u.Role ?? "").ToUpper() != "ADMIN")
         .OrderBy(u => u.Name)
         .Select(u => new DirectoryContactResponse(u.Id, u.Name, u.Phone, u.Email, u.Gender))
