@@ -93,7 +93,7 @@ else
             var created = await Api.PostAsync<AdminCreateUserRequest, DirectoryContactResponse>("/api/users", model);
             if (created is null)
             {
-                error = "Create failed.";
+                error = Api.LastError ?? "Create failed.";
                 return;
             }
 

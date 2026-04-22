@@ -2,7 +2,9 @@ using PhoneBookApp.Models; // fernei to Contact model pou xrisimoipoioume se API
 using phonemanagement.Components; // fernei to Blazor App component (UI root)
 using phonemanagement.Data; // fernei AppDbContext + DbSeeder gia SQL/EF
 using phonemanagement.Dtos.Auth;
+using phonemanagement.Dtos.Directory;
 using phonemanagement.Dtos.Tasks;
+using phonemanagement.Dtos.Users;
 using phonemanagement.Models;
 using phonemanagement.Services; // fernei IContactsStore + SqlContactsStore (CRUD layer)
 using System.Text;
@@ -250,7 +252,7 @@ authApi.MapPost("/login", async (
     Microsoft.AspNetCore.Identity.PasswordHasher<AppUser> hasher,
     IJwtTokenService jwt) =>
 {
-    var identifier = (req.Identifier ?? "").Trim();
+    var identifier = (req.Identifier ?? req.Email ?? "").Trim();
     var email = identifier.ToLowerInvariant();
     if (string.IsNullOrWhiteSpace(identifier) || string.IsNullOrWhiteSpace(req.Password))
         return Results.BadRequest(new { message = "Invalid credentials." });
@@ -337,6 +339,126 @@ tasksApi.MapDelete("/{id:int}", async (ClaimsPrincipal user, int id, AppDbContex
         return Results.NotFound();
 
     db.Tasks.Remove(task);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+});
+
+var directoryApi = app.MapGroup("/api/directory").RequireAuthorization();
+
+directoryApi.MapGet("/", async (AppDbContext db) =>
+{
+    var rows = await db.Users.AsNoTracking()
+        .Where(u => (u.Role ?? "").ToUpper() != "ADMIN")
+        .OrderBy(u => u.Name)
+        .Select(u => new DirectoryContactResponse(u.Id, u.Name, u.Phone, u.Email, u.Gender))
+        .ToListAsync();
+
+    return Results.Ok(rows);
+});
+
+directoryApi.MapGet("/{id:guid}", async (Guid id, AppDbContext db) =>
+{
+    var u = await db.Users.AsNoTracking()
+        .Where(x => x.Id == id && (x.Role ?? "").ToUpper() != "ADMIN")
+        .Select(x => new DirectoryContactResponse(x.Id, x.Name, x.Phone, x.Email, x.Gender))
+        .SingleOrDefaultAsync();
+
+    return u is null ? Results.NotFound() : Results.Ok(u);
+});
+
+var usersApi = app.MapGroup("/api/users").RequireAuthorization("AdminOnly");
+
+usersApi.MapGet("/", async (AppDbContext db) =>
+{
+    var rows = await db.Users.AsNoTracking()
+        .OrderByDescending(u => u.CreatedAtUtc)
+        .Select(u => new UserResponse(
+            u.Id,
+            u.Email,
+            u.Role,
+            u.CreatedAtUtc,
+            db.Tasks.Count(t => t.UserId == u.Id)))
+        .ToListAsync();
+
+    return Results.Ok(rows);
+});
+
+usersApi.MapGet("/{id:guid}", async (Guid id, AppDbContext db) =>
+{
+    var u = await db.Users.AsNoTracking()
+        .Where(x => x.Id == id)
+        .Select(x => new DirectoryContactResponse(x.Id, x.Name, x.Phone, x.Email, x.Gender))
+        .SingleOrDefaultAsync();
+
+    return u is null ? Results.NotFound() : Results.Ok(u);
+});
+
+usersApi.MapPost("/", async (
+    AdminCreateUserRequest req,
+    AppDbContext db,
+    Microsoft.AspNetCore.Identity.PasswordHasher<AppUser> hasher) =>
+{
+    var email = (req.Email ?? "").Trim().ToLowerInvariant();
+    if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(req.Password) || req.Password.Length < 6)
+        return Results.BadRequest(new { message = "Invalid email/password." });
+
+    var exists = await db.Users.AnyAsync(u => u.Email == email);
+    if (exists)
+        return Results.Conflict(new { message = "Email already exists." });
+
+    var role = string.IsNullOrWhiteSpace(req.Role) ? "User" : req.Role.Trim();
+    if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
+        role = "User"; // do not allow creating admins via this endpoint
+
+    var user = new AppUser
+    {
+        Email = email,
+        Name = (req.Name ?? "").Trim(),
+        Phone = (req.Phone ?? "").Trim(),
+        Gender = (req.Gender ?? "Male").Trim(),
+        Role = role,
+        PasswordHash = "TEMP"
+    };
+    user.PasswordHash = hasher.HashPassword(user, req.Password);
+
+    db.Users.Add(user);
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new DirectoryContactResponse(user.Id, user.Name, user.Phone, user.Email, user.Gender));
+});
+
+usersApi.MapPut("/{id:guid}", async (Guid id, AdminUpdateUserRequest req, AppDbContext db) =>
+{
+    var user = await db.Users.SingleOrDefaultAsync(u => u.Id == id);
+    if (user is null) return Results.NotFound();
+    if (string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase))
+        return Results.BadRequest(new { message = "Admin user cannot be edited here." });
+
+    var email = (req.Email ?? "").Trim().ToLowerInvariant();
+    if (string.IsNullOrWhiteSpace(email))
+        return Results.BadRequest(new { message = "Invalid email." });
+
+    var emailTaken = await db.Users.AnyAsync(u => u.Email == email && u.Id != id);
+    if (emailTaken)
+        return Results.Conflict(new { message = "Email already exists." });
+
+    user.Name = (req.Name ?? "").Trim();
+    user.Phone = (req.Phone ?? "").Trim();
+    user.Gender = (req.Gender ?? user.Gender).Trim();
+    user.Email = email;
+
+    await db.SaveChangesAsync();
+    return Results.Ok(new DirectoryContactResponse(user.Id, user.Name, user.Phone, user.Email, user.Gender));
+});
+
+usersApi.MapDelete("/{id:guid}", async (Guid id, AppDbContext db) =>
+{
+    var user = await db.Users.SingleOrDefaultAsync(u => u.Id == id);
+    if (user is null) return Results.NotFound();
+    if (string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase))
+        return Results.BadRequest(new { message = "Admin user cannot be deleted." });
+
+    db.Users.Remove(user);
     await db.SaveChangesAsync();
     return Results.NoContent();
 });
