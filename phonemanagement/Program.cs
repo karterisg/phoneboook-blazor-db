@@ -424,6 +424,16 @@ usersApi.MapPost("/", async (
     user.PasswordHash = hasher.HashPassword(user, req.Password);
 
     db.Users.Add(user);
+
+    // Keep legacy Contacts table in sync (users = contacts)
+    db.Contacts.Add(new Contact
+    {
+        Name = user.Name,
+        Phone = user.Phone,
+        Email = user.Email,
+        Gender = user.Gender
+    });
+
     await db.SaveChangesAsync();
 
     return Results.Ok(new DirectoryContactResponse(user.Id, user.Name, user.Phone, user.Email, user.Gender));
@@ -436,6 +446,7 @@ usersApi.MapPut("/{id:guid}", async (Guid id, AdminUpdateUserRequest req, AppDbC
     if (string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase))
         return Results.BadRequest(new { message = "Admin user cannot be edited here." });
 
+    var oldEmail = user.Email;
     var email = (req.Email ?? "").Trim().ToLowerInvariant();
     if (string.IsNullOrWhiteSpace(email))
         return Results.BadRequest(new { message = "Invalid email." });
@@ -449,6 +460,26 @@ usersApi.MapPut("/{id:guid}", async (Guid id, AdminUpdateUserRequest req, AppDbC
     user.Gender = (req.Gender ?? user.Gender).Trim();
     user.Email = email;
 
+    // Keep legacy Contacts table in sync (best-effort by previous email)
+    var contact = await db.Contacts.SingleOrDefaultAsync(c => c.Email == oldEmail);
+    if (contact is null)
+    {
+        db.Contacts.Add(new Contact
+        {
+            Name = user.Name,
+            Phone = user.Phone,
+            Email = user.Email,
+            Gender = user.Gender
+        });
+    }
+    else
+    {
+        contact.Name = user.Name;
+        contact.Phone = user.Phone;
+        contact.Email = user.Email;
+        contact.Gender = user.Gender;
+    }
+
     await db.SaveChangesAsync();
     return Results.Ok(new DirectoryContactResponse(user.Id, user.Name, user.Phone, user.Email, user.Gender));
 });
@@ -459,6 +490,11 @@ usersApi.MapDelete("/{id:guid}", async (Guid id, AppDbContext db) =>
     if (user is null) return Results.NotFound();
     if (string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase))
         return Results.BadRequest(new { message = "Admin user cannot be deleted." });
+
+    // Keep legacy Contacts table in sync (best-effort by email)
+    var contact = await db.Contacts.SingleOrDefaultAsync(c => c.Email == user.Email);
+    if (contact is not null)
+        db.Contacts.Remove(contact);
 
     db.Users.Remove(user);
     await db.SaveChangesAsync();
