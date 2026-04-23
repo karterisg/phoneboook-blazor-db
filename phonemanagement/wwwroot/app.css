@@ -1,24 +1,60 @@
-﻿/* --- Οι δικοί σου υπάρχοντες κανόνες --- */
+﻿/* Phonebook – global theme (Bootstrap-friendly) */
+:root {
+    --pb-surface: #f6f7fb;
+    --pb-elev: #ffffff;
+    --pb-text: #0f172a;
+    --pb-text-muted: #64748b;
+    --pb-brand: #3730a3;
+    --pb-brand-2: #4f46e5;
+    --pb-border: rgba(15, 23, 42, 0.08);
+    --pb-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+    --pb-radius: 14px;
+    --pb-radius-sm: 10px;
+}
+
 html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--pb-text);
+    background: var(--pb-surface);
+    -webkit-font-smoothing: antialiased;
 }
 
 a, .btn-link {
-    color: #006bb7;
+    color: var(--pb-brand-2);
+}
+
+a:hover {
+    color: #312e81;
 }
 
 .btn-primary {
     color: #fff;
-    background-color: #1b6ec2;
-    border-color: #1861ac;
+    background: linear-gradient(180deg, #4f46e5 0%, #4338ca 100%);
+    border-color: #3730a3;
+    font-weight: 500;
+    border-radius: var(--pb-radius-sm);
+    padding: 0.5rem 1.1rem;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(180deg, #5b51f0 0%, #4c3fd1 100%);
+    border-color: #312e81;
+    color: #fff;
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+    box-shadow: 0 0 0 0.1rem #fff, 0 0 0 0.2rem rgba(99, 102, 241, 0.35);
+}
+
+.app-main {
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
 .content {
-    padding-top: 1.1rem;
+    padding-top: 1.25rem;
+    padding-bottom: 2.5rem;
+    min-height: 60vh;
 }
 
 h1:focus {
@@ -26,29 +62,185 @@ h1:focus {
 }
 
 .valid.modified:not([type=checkbox]) {
-    outline: 1px solid #26b050;
+    outline: 1px solid #10b981;
 }
 
 .invalid {
-    outline: 1px solid #e50000;
+    outline: 1px solid #e11d48;
 }
 
 .validation-message {
-    color: #e50000;
+    color: #e11d48;
+}
+
+/* ---- Layout helpers ---- */
+.pb-card {
+    background: var(--pb-elev);
+    border: 1px solid var(--pb-border);
+    border-radius: var(--pb-radius);
+    box-shadow: var(--pb-shadow);
+}
+
+.pb-card-body {
+    padding: 1.5rem 1.75rem;
+}
+
+.pb-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--pb-radius);
+    background: linear-gradient(135deg, #312e81 0%, #4f46e5 50%, #6366f1 100%);
+    color: #fff;
+    padding: 2.25rem 2rem 2.5rem;
+    box-shadow: var(--pb-shadow);
+}
+
+.pb-hero h1 {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    font-size: clamp(1.75rem, 3vw, 2.25rem);
+}
+
+.pb-hero p {
+    opacity: 0.92;
+    max-width: 40rem;
+    margin-bottom: 0;
+}
+
+.pb-hero .pb-kicker {
+    color: rgba(255, 255, 255, 0.55) !important;
+    letter-spacing: 0.14em;
+}
+
+.pb-stat {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--pb-elev);
+    border: 1px solid var(--pb-border);
+    border-radius: var(--pb-radius);
+    padding: 1.25rem 1.4rem;
+    height: 100%;
+    box-shadow: var(--pb-shadow);
+}
+
+.pb-stat-icon {
+    width: 3.25rem;
+    height: 3.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+}
+
+.pb-stat-icon--slate { background: #e0e7ff; color: #312e81; }
+.pb-stat-icon--indigo { background: #c7d2fe; color: #3730a3; }
+.pb-stat-icon--rose { background: #fce7f3; color: #9d174d; }
+
+.pb-stat .display-6 {
+    font-size: 1.85rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.pb-page-header {
+    margin-bottom: 1.75rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--pb-border);
+}
+
+.pb-page-header h1 {
+    font-size: 1.65rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0 0 0.35rem;
+}
+
+.pb-kicker {
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: var(--pb-text-muted);
+    margin: 0 0 0.4rem;
+}
+
+.pb-gender-pill {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.pb-gender-pill--f {
+    background: #fce7f3;
+    color: #9d174d;
+}
+
+.pb-gender-pill--m {
+    background: #dcfce7;
+    color: #14532d;
+}
+
+.pb-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #fff;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    flex-shrink: 0;
+}
+
+.pb-empty {
+    text-align: center;
+    padding: 3.5rem 1.5rem;
+    color: var(--pb-text-muted);
+    border: 1px dashed var(--pb-border);
+    border-radius: var(--pb-radius);
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.pb-empty i {
+    font-size: 2.5rem;
+    opacity: 0.4;
+    display: block;
+    margin-bottom: 0.75rem;
+}
+
+.pb-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.pb-form-card {
+    max-width: 32rem;
 }
 
 .blazor-error-boundary {
-    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4NSA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzcgOTMuNTEzIDI5MSA5NC4wODE1IDI5MSA5NC42NzgyIDI5MSA5Ny4wNjUxIDI4OS4wMzggOTkgMjg2LjYxNyA5OUwyNDAuMzgzIDk5QzIzNy45NjMgOTkgMjM2IDk3LjA2NTEgMjM2IDk0LjY3ODIgMjM2IDk0LjM3OTkgMjM2LjAzMSA5NC4wODg2IDIzNi4wODkgOTMuODA3MkwyMzYuMzM4IDkzLjAxNjIgMjM2Ljg1OCA5Mi4xMzE0IDI1OS40NzMgNTMuNjI5NCAyNTkuOTYxIDUyLjc5ODUgMjYwLjQwNyA1Mi4yNjU4QzI2MS4yIDUxLjQ4MzcgMjYyLjI5NiA1MSAyNjMuNTA2IDUxWk0yNjMuNTg2IDY2LjAxODNDMjYwLjczNyA2Ni4wMTgzIDI1OS4zMTMgNjcuMTI0NSAyNTkuMzEzIDY5LjMzNyAyNTkuMzEzIDY5LjYxMDIgMjU5LjMzMiA2OS44NjA4IDI1OS4zNzEgNzAuMDg4N0wyNjEuNzk1IDg0LjAxNjEgMjY1LjM4IDg0LjAxNjEgMjY3LjgyMSA2OS43NDc1QzI2Ny44NiA2OS43MzA5IDI2Ny44NzkgNjkuNTg3NyAyNjcuODc5IDY5LjMxNzkgMjY3LjgyOSA2Ny4xMTgyIDI2Ni40NDggNjYuMDE4MyAyNjMuNTg2IDY2LjAxODNaTTI2My41NzYgODYuMDU0N0MyNjEuMDQ5IDg2LjA1NDcgMjU5Ljc4NiA4Ny4zMDA1IDI1OS43ODYgODkuNzkyMSAyNTkuNzg2IDkyLjI4MzcgMjYxLjA0OSA5My41Mjk1IDI2My41NzYgOTMuNTI5NSAyNjYuMTE2IDkzLjUyOTUgMjY3LjM4NyA5Mi4yODM3IDI2Ny4zODcgODkuNzkyMSAyNjcuMzg3IDg3LjMwMDUgMjY2LjExNiA4Ni4wNTQ3IDI2My41NzYgODYuMDU0N1oiIGZpbGw9IiNGRkU1MDAiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjwvZz48L3N2Zz4=) no-repeat 1rem/1.8rem, #b32121;
-    padding: 1rem 1rem 1rem 3.7rem;
+    background: #b32121;
+    padding: 1rem 1.25rem;
     color: white;
 }
 
-    .blazor-error-boundary::after {
-        content: "An error has occurred."
-    }
+.blazor-error-boundary::after {
+    content: "An error has occurred."
+}
 
 .darker-border-checkbox.form-check-input {
-    border-color: #929292;
+    border-color: #94a3b8;
 }
 
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
@@ -60,30 +252,23 @@ h1:focus {
     text-align: start;
 }
 
-
-
-ul {
-    list-style: none; /* Αφαιρεί τις τελείες */
-    padding: 0;
-    max-width: 600px; /* Προαιρετικό πλάτος για να μη "χάνονται" τα κουμπιά σε μεγάλες οθόνες */
+/* Login / form screens */
+.auth-shell {
+    min-height: calc(100vh - 4rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
 }
 
-li {
-    display: flex; 
-    justify-content: space-between; /* Σπρώχνει το κείμενο αριστερά και τα κουμπιά δεξιά */
-    align-items: center; /* Κεντράρει κείμενο και κουμπιά καθ' ύψος */
-    padding: 10px;
-    margin-bottom: 5px;
-    border-bottom: 1px solid #eee; /* Μια διακριτική γραμμή ανάμεσα στις επαφές */
+.auth-card {
+    width: 100%;
+    max-width: 22rem;
+    background: var(--pb-elev);
+    border: 1px solid var(--pb-border);
+    border-radius: var(--pb-radius);
+    box-shadow: var(--pb-shadow);
+    padding: 2rem 1.75rem;
 }
 
-    /* Για να στοιχίσουμε σωστά το Edit και το Delete μαζί */
-    li a, li form {
-        margin-left: 5px;
-    }
-
-/* Αν θες τα κουμπιά να έχουν πάντα το ίδιο πλάτος για τέλεια στοίχιση */
-.btn-sm {
-    min-width: 65px;
-    text-align: center;
-}
+.btn-sm { min-width: 0; }

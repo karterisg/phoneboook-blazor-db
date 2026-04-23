@@ -1,39 +1,58 @@
-@* route gia ti selida add *@
 @page "/add-contact"
-@* xrisimopoiei to Contact model *@
 @using PhoneBookApp.Models
-@* navigation metaksy selidon *@
 @inject NavigationManager Nav
-@* store pou grafei stin SQL *@
 @inject phonemanagement.Services.IContactsStore Store
 @inject phonemanagement.Services.ClientAuthState Auth
-@* xreiazetai gia na doulepsei to form submit *@
 @rendermode InteractiveServer
 
-<h3>Add Contact</h3> @* titlos selidas *@
+<PageTitle>Νέα επαφή</PageTitle>
 
 @if (!authReady)
 {
-    <p class="text-muted">Loading…</p>
+    <p class="text-muted">Φόρτωση…</p>
     return;
 }
 
-<EditForm Model="contact" OnValidSubmit="Save"> @* form pou kanei bind sto contact kai sto submit kalei Save *@
-    <InputText @bind-Value="contact.Name" class="form-control mb-2" placeholder="Name" /> @* input gia Name *@
-    <InputText @bind-Value="contact.Phone" class="form-control mb-2" placeholder="Phone" /> @* input gia Phone *@
-    <InputText @bind-Value="contact.Email" class="form-control mb-2" placeholder="Email" /> @* input gia Email *@
+<div class="pb-page-header">
+    <p class="pb-kicker">Νέα</p>
+    <h1>Προσθήκη επαφής</h1>
+    <p class="text-muted mb-0">Συμπληρώστε τα πεδία· τα δεδομένα αποθηκεύονται στη βάση.</p>
+</div>
 
+<div class="pb-card pb-form-card">
+    <div class="pb-card-body">
+        <EditForm Model="contact" OnValidSubmit="Save">
+            <div class="mb-3">
+                <label class="form-label">Όνομα</label>
+                <InputText @bind-Value="contact.Name" class="form-control" placeholder="π.χ. Γιώργος Παπαδόπουλος" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Τηλέφωνο</label>
+                <InputText @bind-Value="contact.Phone" class="form-control" placeholder="π.χ. 6912345678" inputmode="tel" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" placeholder="name@@example.com" @bind="contact.Email" @bind:event="oninput" />
+            </div>
+            <div class="mb-4">
+                <label class="form-label">Φύλο</label>
+                <InputSelect @bind-Value="contact.Gender" class="form-select">
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                </InputSelect>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-primary" type="submit">
+                    <i class="bi bi-check-lg me-1" aria-hidden="true"></i>Αποθήκευση
+                </button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="GoBack">Άκυρο</button>
+            </div>
+        </EditForm>
+    </div>
+</div>
 
-    <InputSelect @bind-Value="contact.Gender" class="form-control mb-2"> @* dropdown gia Gender *@
-        <option value="Male">Male</option> @* epilogi Male *@
-        <option value="Female">Female</option> @* epilogi Female *@
-    </InputSelect> @* telos dropdown *@
-
-    <button class="btn btn-success mt-2" type="submit">Add Contact</button> @* submit pou kanei Save *@
-</EditForm>
-
-@code { @* code-behind tou component *@
-    Contact contact = new Contact { Gender = "Male" }; @* arxiko model me default Gender *@
+@code {
+    Contact contact = new Contact { Gender = "Male" };
     private bool authReady;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -57,15 +76,14 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    async Task Save() @* method pou kaleitai sto submit *@
-    { @* arxi method *@
+    async Task Save()
+    {
         if (!Auth.IsAdmin)
             return;
 
-        await Store.AddAsync(contact); @* INSERT stin SQL mesw store *@
-        Nav.NavigateTo("/contacts"); @* gurna piso sti lista *@
-    } @* telos method *@
+        await Store.AddAsync(contact);
+        Nav.NavigateTo("/contacts");
+    }
 
-
-
-} @* telos code *@
+    void GoBack() => Nav.NavigateTo("/contacts");
+}

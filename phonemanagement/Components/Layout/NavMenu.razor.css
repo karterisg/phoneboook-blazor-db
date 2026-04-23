@@ -21,7 +21,17 @@
 }
 
 .navbar-brand {
-    font-size: 1.1rem;
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.navbar-sub {
+    font-size: 0.7rem;
+    line-height: 1.2;
+    margin-top: -0.1rem;
+    margin-bottom: 0.25rem;
+    opacity: 0.85;
 }
 
 .bi {

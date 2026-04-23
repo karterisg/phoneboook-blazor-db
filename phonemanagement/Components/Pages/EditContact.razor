@@ -1,46 +1,65 @@
-@* route me parameter Id *@
 @page "/edit-contact/{Id:int}"
-@* xrisimopoiei to Contact model *@
 @using PhoneBookApp.Models
-@* navigation metaksy selidon *@
 @inject NavigationManager Nav
-@* store pou diavazei/grafei stin SQL *@
 @inject phonemanagement.Services.IContactsStore Store
 @inject phonemanagement.Services.ClientAuthState Auth
-@* xreiazetai gia forms/events *@
 @rendermode InteractiveServer
 
-<h3>Edit Contact</h3> @* titlos selidas *@
+<PageTitle>Επεξεργασία επαφής</PageTitle>
 
 @if (!authReady)
 {
-    <p class="text-muted">Loading…</p>
+    <p class="text-muted">Φόρτωση…</p>
 }
-else if (contact != null) @* an fortothike to contact, deikse form *@
+else if (contact != null)
 {
-    <EditForm Model="contact" OnValidSubmit="Update"> @* form gia update tou contact *@
-        <InputText @bind-Value="contact.Name" class="form-control mb-2" /> @* edit Name *@
-        <InputText @bind-Value="contact.Phone" class="form-control mb-2" /> @* edit Phone *@
-        <InputText @bind-Value="contact.Email" class="form-control mb-2" /> @* edit Email *@
+    <div class="pb-page-header">
+        <p class="pb-kicker">Επεξεργασία</p>
+        <h1>Επαφή: @contact.Name</h1>
+        <p class="text-muted mb-0">Ενημερώστε τα πεδία και αποθηκεύστε.</p>
+    </div>
 
-        <InputSelect @bind-Value="contact.Gender" class="form-control mb-2"> @* edit Gender *@
-            <option value="Male">Male</option> @* Male option *@
-            <option value="Female">Female</option> @* Female option *@
-        </InputSelect> @* telos dropdown *@
-
-        <button class="btn btn-success mt-2" type="submit">Save</button> @* submit pou kalei Update *@
-    </EditForm>
+    <div class="pb-card pb-form-card">
+        <div class="pb-card-body">
+            <EditForm Model="contact" OnValidSubmit="Update">
+                <div class="mb-3">
+                    <label class="form-label">Όνομα</label>
+                    <InputText @bind-Value="contact.Name" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Τηλέφωνο</label>
+                    <InputText @bind-Value="contact.Phone" class="form-control" inputmode="tel" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" @bind="contact.Email" @bind:event="oninput" />
+                </div>
+                <div class="mb-4">
+                    <label class="form-label">Φύλο</label>
+                    <InputSelect @bind-Value="contact.Gender" class="form-select">
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </InputSelect>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="bi bi-check-lg me-1" aria-hidden="true"></i>Αποθήκευση
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="GoBack">Άκυρο</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
 }
 
-@code { @* code-behind tou component *@
-    [Parameter] public int Id { get; set; }  @* pairnei Id apo route *@
+@code {
+    [Parameter] public int Id { get; set; }
 
-
-    Contact? contact; @* to model pou fortonoume apo SQL *@
+    Contact? contact;
     private bool authReady;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
-    { @* arxi init *@
+    {
         if (!firstRender)
             return;
 
@@ -56,20 +75,22 @@ else if (contact != null) @* an fortothike to contact, deikse form *@
             return;
         }
 
-        contact = await Store.GetByIdAsync(Id); @* SELECT contact apo SQL me to Id *@
+        contact = await Store.GetByIdAsync(Id);
         authReady = true;
         await InvokeAsync(StateHasChanged);
-    } @* telos init *@
+    }
 
-    async Task Update() @* trexei sto submit tou form *@
-    { @* arxi update *@
+    async Task Update()
+    {
         if (!Auth.IsAdmin)
             return;
 
-        if (contact != null) @* safety check *@
-        { @* arxi if *@
-            await Store.UpdateAsync(contact); @* UPDATE stin SQL mesw store *@
-            Nav.NavigateTo("/contacts"); @* gurna piso sti lista *@
-        } @* telos if *@
-    } @* telos update *@
-} @* telos code *@
+        if (contact != null)
+        {
+            await Store.UpdateAsync(contact);
+            Nav.NavigateTo("/contacts");
+        }
+    }
+
+    void GoBack() => Nav.NavigateTo("/contacts");
+}

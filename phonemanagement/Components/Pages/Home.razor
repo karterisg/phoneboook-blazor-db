@@ -5,85 +5,100 @@
 @inject phonemanagement.Services.ClientAuthState Auth
 @rendermode InteractiveServer
 
-<PageTitle>Phone Directory</PageTitle>
+<PageTitle>Phonebook — Home</PageTitle>
 
-<h1>Phone Directory</h1>
-
-
+<div class="pb-hero mb-4">
+    <p class="pb-kicker text-white-50">Καλώς ήρθατε</p>
+    <h1 class="text-white mb-3">Ο κατάλογος επαφών σας</h1>
+    <p class="text-white-50">Διαχειριστείτε επαφές με Blazor Server, SQL Server και REST API — καθαρή εμφάνιση, έτοιμο για καθημερινή χρήση.</p>
+</div>
 
 <div class="row g-3 mb-4">
     <div class="col-12 col-md-4">
-        <div class="card p-3">
-            <div class="h6 text-muted mb-1">Total contacts</div>
-            <div class="display-6 mb-0">@totalCount</div>
+        <div class="pb-stat">
+            <div class="pb-stat-icon pb-stat-icon--slate"><i class="bi bi-people-fill"></i></div>
+            <div>
+                <div class="h6 text-muted mb-1">Σύνολο επαφών</div>
+                <div class="display-6 mb-0">@totalCount</div>
+            </div>
         </div>
     </div>
     <div class="col-12 col-md-4">
-        <div class="card p-3">
-            <div class="h6 text-muted mb-1">Male</div>
-            <div class="display-6 mb-0">@maleCount</div>
+        <div class="pb-stat">
+            <div class="pb-stat-icon pb-stat-icon--indigo"><i class="bi bi-gender-male"></i></div>
+            <div>
+                <div class="h6 text-muted mb-1">Male</div>
+                <div class="display-6 mb-0">@maleCount</div>
+            </div>
         </div>
     </div>
     <div class="col-12 col-md-4">
-        <div class="card p-3">
-            <div class="h6 text-muted mb-1">Female</div>
-            <div class="display-6 mb-0">@femaleCount</div>
+        <div class="pb-stat">
+            <div class="pb-stat-icon pb-stat-icon--rose"><i class="bi bi-gender-female"></i></div>
+            <div>
+                <div class="h6 text-muted mb-1">Female</div>
+                <div class="display-6 mb-0">@femaleCount</div>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="row g-3 mb-4">
+<div class="row g-3">
     <div class="col-12 col-lg-6">
-        <div class="card p-3 h-100">
-            <h5 class="mb-3">Quick actions</h5>
-            <div class="d-flex flex-wrap gap-2">
-                <button class="btn btn-success" @onclick="GoAdd">Add contact</button>
-                <button class="btn btn-primary" @onclick="GoContacts">Open directory</button>
-                <button class="btn btn-outline-secondary" @onclick="Refresh">Refresh</button>
+        <div class="pb-card h-100">
+            <div class="pb-card-body">
+                <h5 class="fw-semibold mb-3">Γρήγορες ενέργειες</h5>
+                <div class="d-flex flex-wrap gap-2 mb-4">
+                    <button type="button" class="btn btn-success" @onclick="GoAdd"><i class="bi bi-person-plus me-1"></i> Νέα επαφή</button>
+                    <button type="button" class="btn btn-primary" @onclick="GoContacts"><i class="bi bi-journal-text me-1"></i> Κατάλογος</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="Refresh"><i class="bi bi-arrow-clockwise me-1"></i> Ανανέωση</button>
+                </div>
+                <label class="form-label small text-muted mb-1">Γρήγορη αναζήτηση</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                    <input class="form-control border-start-0" placeholder="Όνομα, τηλέφωνο ή email…" @bind="quickSearch" @bind:event="oninput" />
+                    <button class="btn btn-dark" @onclick="GoSearch" disabled="@string.IsNullOrWhiteSpace(quickSearch)">Μετάβαση</button>
+                </div>
+                <small class="text-muted d-block mt-2">Η αναζήτηση ανοίγει τον κατάλογο με φίλτρο.</small>
             </div>
-            <hr />
-            <label class="form-label">Quick search</label>
-            <div class="input-group">
-                <input class="form-control" placeholder="Name, phone, or email…" @bind="quickSearch" @bind:event="oninput" />
-                <button class="btn btn-outline-dark" @onclick="GoSearch" disabled="@string.IsNullOrWhiteSpace(quickSearch)">Search</button>
-            </div>
-            <small class="text-muted d-block mt-2">
-                Search runs inside the directory page and queries SQL.
-            </small>
         </div>
     </div>
 
     <div class="col-12 col-lg-6">
-        <div class="card p-3 h-100">
-            <h5 class="mb-3">Recent contacts</h5>
+        <div class="pb-card h-100">
+            <div class="pb-card-body">
+                <h5 class="fw-semibold mb-3">Πρόσφατες επαφές</h5>
 
-            @if (loading)
-            {
-                <p class="text-muted mb-0">Loading…</p>
-            }
-            else if (!recent.Any())
-            {
-                <p class="text-muted mb-0">No contacts yet. Add your first contact.</p>
-            }
-            else
-            {
-                <ul class="list-group">
-                    @foreach (var c in recent)
-                    {
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>
-                                <strong>@c.Name</strong>
-                                <span class="text-muted">— @c.Phone</span>
-                                @if (!string.IsNullOrWhiteSpace(c.Email))
-                                {
-                                    <span class="text-muted">(@c.Email)</span>
-                                }
-                            </span>
-                            <button class="btn btn-sm btn-outline-info" @onclick="() => GoView(c.Id)">View</button>
-                        </li>
-                    }
-                </ul>
-            }
+                @if (loading)
+                {
+                    <p class="text-muted mb-0">Φόρτωση…</p>
+                }
+                else if (!recent.Any())
+                {
+                    <div class="pb-empty">
+                        <i class="bi bi-inbox"></i>
+                        <p class="mb-0">Δεν υπάρχουν επαφές. Προσθέστε την πρώτη σας.</p>
+                    </div>
+                }
+                else
+                {
+                    <ul class="list-group list-group-flush rounded-3 border">
+                        @foreach (var c in recent)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                <div class="d-flex align-items-center gap-3 min-w-0">
+                                    <div class="pb-avatar">@GetInitial(c.Name)</div>
+                                    <div class="min-w-0">
+                                        <div class="fw-semibold text-truncate">@c.Name</div>
+                                        <div class="small text-muted text-truncate">@c.Phone @if (!string.IsNullOrWhiteSpace(c.Email)) { <span>· @c.Email</span> }</div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary flex-shrink-0" @onclick="() => GoView(c.Id)">Προβολή</button>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
         </div>
     </div>
 </div>
@@ -103,6 +118,13 @@
     {
         await Auth.LoadAsync();
         await LoadAsync();
+    }
+
+    private static string GetInitial(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var t = name.Trim();
+        return t.Length == 0 ? "?" : char.ToUpper(t[0]).ToString();
     }
 
     private async Task LoadAsync()

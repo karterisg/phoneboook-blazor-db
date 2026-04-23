@@ -2,8 +2,9 @@
 @inject phonemanagement.Services.ClientAuthState Auth
 @inject NavigationManager Nav
 <div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">PhoneManagement</a>
+    <div class="container-fluid d-flex flex-column align-items-start gap-0">
+        <a class="navbar-brand mb-0" href="" title="Phonebook">Phonebook</a>
+        <div class="navbar-sub text-white-50 small">Contacts &amp; directory</div>
         <button class="navbar-toggler" @onclick="ToggleMenu" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
