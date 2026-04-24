@@ -3,6 +3,7 @@ using phonemanagement.Components; // fernei to Blazor App component (UI root)
 using phonemanagement.Data; // fernei AppDbContext + DbSeeder gia SQL/EF
 using phonemanagement.Dtos.Auth;
 using phonemanagement.Dtos.Directory;
+using phonemanagement.Dtos.Me;
 using phonemanagement.Dtos.Tasks;
 using phonemanagement.Dtos.Users;
 using phonemanagement.Models;
@@ -138,19 +139,6 @@ app.UseAntiforgery(); // energopoiei CSRF protection gia UI
 app.UseAuthentication();
 app.UseAuthorization();
 
-var meApi = app.MapGroup("/api").RequireAuthorization();
-meApi.MapGet("/me", (ClaimsPrincipal user) =>
-{
-    var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub");
-    var email = user.FindFirstValue(ClaimTypes.Email) ?? user.FindFirstValue("email") ?? user.Identity?.Name;
-    return Results.Ok(new
-    {
-        userId,
-        email
-    });
-});
-
-
 //Static files
 app.MapStaticAssets(); // servirei static assets (wwwroot)
 
@@ -228,6 +216,12 @@ authApi.MapPost("/register", async (
     if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(req.Password) || req.Password.Length < 6)
         return Results.BadRequest(new { message = "Invalid email/password." });
 
+    var name = (req.Name ?? "").Trim();
+    var phone = (req.Phone ?? "").Trim();
+    var gender = string.IsNullOrWhiteSpace(req.Gender) ? "Male" : req.Gender.Trim();
+    if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(phone))
+        return Results.BadRequest(new { message = "Name/phone are required." });
+
     var exists = await db.Users.AnyAsync(u => u.Email == email);
     if (exists)
         return Results.Conflict(new { message = "Email already registered." });
@@ -235,11 +229,24 @@ authApi.MapPost("/register", async (
     var user = new AppUser
     {
         Email = email,
+        Name = name,
+        Phone = phone,
+        Gender = gender,
         PasswordHash = "TEMP"
     };
     user.PasswordHash = hasher.HashPassword(user, req.Password);
 
     db.Users.Add(user);
+
+    // Keep legacy Contacts table in sync (users = contacts)
+    db.Contacts.Add(new Contact
+    {
+        Name = user.Name,
+        Phone = user.Phone,
+        Email = user.Email,
+        Gender = user.Gender
+    });
+
     await db.SaveChangesAsync();
 
     var (token, expiresAtUtc) = jwt.CreateAccessToken(user);
@@ -277,11 +284,121 @@ authApi.MapPost("/login", async (
     return Results.Ok(new AuthResponse(token, expiresAtUtc, user.Email));
 });
 
+var meApi = app.MapGroup("/api/me").RequireAuthorization();
+
+meApi.MapGet("/", async (ClaimsPrincipal principal, AppDbContext db) =>
+{
+    var userId = GetUserId(principal);
+    var me = await db.Users.AsNoTracking().SingleOrDefaultAsync(u => u.Id == userId);
+    if (me is null)
+        return Results.NotFound();
+
+    return Results.Ok(new MeResponse(me.Id, me.Email, me.Name, me.Phone, me.Gender, me.Role, me.CreatedAtUtc));
+});
+
+meApi.MapPut("/", async (ClaimsPrincipal principal, MeUpdateRequest req, AppDbContext db) =>
+{
+    var userId = GetUserId(principal);
+    var me = await db.Users.SingleOrDefaultAsync(u => u.Id == userId);
+    if (me is null)
+        return Results.NotFound();
+
+    var email = (req.Email ?? "").Trim().ToLowerInvariant();
+    var name = (req.Name ?? "").Trim();
+    var phone = (req.Phone ?? "").Trim();
+    var gender = string.IsNullOrWhiteSpace(req.Gender) ? "Male" : req.Gender.Trim();
+
+    if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(phone))
+        return Results.BadRequest(new { message = "Invalid fields." });
+
+    // email uniqueness
+    var emailTaken = await db.Users.AnyAsync(u => u.Email == email && u.Id != userId);
+    if (emailTaken)
+        return Results.Conflict(new { message = "Email already exists." });
+
+    var oldEmail = me.Email;
+    me.Email = email;
+    me.Name = name;
+    me.Phone = phone;
+    me.Gender = gender;
+
+    // Keep legacy Contacts table in sync (best-effort by previous email)
+    var contact = await db.Contacts.SingleOrDefaultAsync(c => c.Email == oldEmail);
+    if (contact is null)
+    {
+        db.Contacts.Add(new Contact
+        {
+            Name = me.Name,
+            Phone = me.Phone,
+            Email = me.Email,
+            Gender = me.Gender
+        });
+    }
+    else
+    {
+        contact.Name = me.Name;
+        contact.Phone = me.Phone;
+        contact.Email = me.Email;
+        contact.Gender = me.Gender;
+    }
+
+    await db.SaveChangesAsync();
+    return Results.Ok(new MeResponse(me.Id, me.Email, me.Name, me.Phone, me.Gender, me.Role, me.CreatedAtUtc));
+});
+
+meApi.MapPut("/password", async (
+    ClaimsPrincipal principal,
+    ChangePasswordRequest req,
+    AppDbContext db,
+    Microsoft.AspNetCore.Identity.PasswordHasher<AppUser> hasher) =>
+{
+    var userId = GetUserId(principal);
+    var me = await db.Users.SingleOrDefaultAsync(u => u.Id == userId);
+    if (me is null)
+        return Results.NotFound();
+
+    if (string.IsNullOrWhiteSpace(req.CurrentPassword) || string.IsNullOrWhiteSpace(req.NewPassword) || req.NewPassword.Length < 6)
+        return Results.BadRequest(new { message = "Invalid password." });
+
+    var verified = hasher.VerifyHashedPassword(me, me.PasswordHash, req.CurrentPassword);
+    if (verified == Microsoft.AspNetCore.Identity.PasswordVerificationResult.Failed)
+        return Results.BadRequest(new { message = "Current password is incorrect." });
+
+    me.PasswordHash = hasher.HashPassword(me, req.NewPassword);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { message = "Password updated." });
+});
+
 var tasksApi = app.MapGroup("/api/tasks").RequireAuthorization();
 
 tasksApi.MapGet("/", async (ClaimsPrincipal user, AppDbContext db) =>
 {
     var userId = GetUserId(user);
+    var isAdmin = user.IsInRole("Admin");
+
+    if (isAdmin)
+    {
+        var all = await db.Tasks
+            .Join(db.Users,
+                t => t.UserId,
+                u => u.Id,
+                (t, u) => new { t, u })
+            .OrderByDescending(x => x.t.CreatedAtUtc)
+            .Select(x => new AdminTaskResponse(
+                x.t.Id,
+                x.u.Id,
+                x.u.Email,
+                x.u.Name,
+                x.t.Title,
+                x.t.Notes,
+                x.t.IsCompleted,
+                x.t.DueAtUtc,
+                x.t.CreatedAtUtc))
+            .ToListAsync();
+
+        return Results.Ok(all);
+    }
+
     var tasks = await db.Tasks
         .Where(t => t.UserId == userId)
         .OrderByDescending(t => t.CreatedAtUtc)
@@ -439,7 +556,11 @@ usersApi.MapPost("/", async (
     return Results.Ok(new DirectoryContactResponse(user.Id, user.Name, user.Phone, user.Email, user.Gender));
 });
 
-usersApi.MapPut("/{id:guid}", async (Guid id, AdminUpdateUserRequest req, AppDbContext db) =>
+usersApi.MapPut("/{id:guid}", async (
+    Guid id,
+    AdminUpdateUserRequest req,
+    AppDbContext db,
+    Microsoft.AspNetCore.Identity.PasswordHasher<AppUser> hasher) =>
 {
     var user = await db.Users.SingleOrDefaultAsync(u => u.Id == id);
     if (user is null) return Results.NotFound();
@@ -459,6 +580,13 @@ usersApi.MapPut("/{id:guid}", async (Guid id, AdminUpdateUserRequest req, AppDbC
     user.Phone = (req.Phone ?? "").Trim();
     user.Gender = (req.Gender ?? user.Gender).Trim();
     user.Email = email;
+
+    if (!string.IsNullOrWhiteSpace(req.NewPassword))
+    {
+        if (req.NewPassword.Trim().Length < 6)
+            return Results.BadRequest(new { message = "Password must be at least 6 characters." });
+        user.PasswordHash = hasher.HashPassword(user, req.NewPassword.Trim());
+    }
 
     // Keep legacy Contacts table in sync (best-effort by previous email)
     var contact = await db.Contacts.SingleOrDefaultAsync(c => c.Email == oldEmail);

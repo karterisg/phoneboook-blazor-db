@@ -59,6 +59,14 @@ else
             <label class="form-label">Email</label>
             <InputText class="form-control" @bind-Value="model.Email" />
         </div>
+        <div class="mb-3">
+            <label class="form-label">Reset password (optional)</label>
+            <InputText class="form-control" type="password" @bind-Value="model.NewPassword" />
+            <div class="form-text">Leave empty to keep existing password.</div>
+        </div>
+
+
+
 
         @if (!string.IsNullOrWhiteSpace(error))
         {
@@ -70,6 +78,7 @@ else
             <a class="btn btn-outline-secondary" href="/contacts">Cancel</a>
         </div>
     </EditForm>
+
 }
 
 @code {

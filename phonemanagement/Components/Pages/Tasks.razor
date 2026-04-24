@@ -9,7 +9,7 @@
 <PageTitle>Tasks</PageTitle>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3 class="mb-0">My Tasks</h3>
+    <h3 class="mb-0">@(Auth.IsAdmin ? "All Tasks" : "My Tasks")</h3>
     <button class="btn btn-outline-secondary" @onclick="RefreshAsync">Refresh</button>
 </div>
 
@@ -60,6 +60,16 @@ else
             <li class="list-group-item d-flex justify-content-between align-items-center">
                 <div>
                     <div class="fw-semibold">@t.Title</div>
+                    @if (Auth.IsAdmin && !string.IsNullOrWhiteSpace(t.UserEmail))
+                    {
+                        <div class="small">
+                            <span class="badge text-bg-secondary">@t.UserEmail</span>
+                            @if (!string.IsNullOrWhiteSpace(t.UserName))
+                            {
+                                <span class="text-muted ms-2">@t.UserName</span>
+                            }
+                        </div>
+                    }
                     <div class="text-muted small">
                         Created: @t.CreatedAtUtc.ToString("u")
                         @if (t.DueAtUtc is not null)
@@ -92,9 +102,23 @@ else
     private string? error;
     private bool authReady;
 
-    private List<TaskResponse> tasks = new();
+    private List<TaskRow> tasks = new();
     private TaskCreateRequest create = new();
     private DateTime? dueDate;
+
+    private sealed class TaskRow
+    {
+        public int Id { get; init; }
+        public string Title { get; init; } = "";
+        public string? Notes { get; init; }
+        public bool IsCompleted { get; init; }
+        public DateTime? DueAtUtc { get; init; }
+        public DateTime CreatedAtUtc { get; init; }
+
+        public Guid? UserId { get; init; }
+        public string? UserEmail { get; init; }
+        public string? UserName { get; init; }
+    }
 
     protected override Task OnInitializedAsync()
     {
@@ -144,8 +168,35 @@ else
         error = null;
         try
         {
-            var res = await Api.GetAsync<List<TaskResponse>>("/api/tasks");
-            tasks = res ?? new();
+            if (Auth.IsAdmin)
+            {
+                var res = await Api.GetAsync<List<AdminTaskResponse>>("/api/tasks");
+                tasks = (res ?? new()).Select(t => new TaskRow
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    Notes = t.Notes,
+                    IsCompleted = t.IsCompleted,
+                    DueAtUtc = t.DueAtUtc,
+                    CreatedAtUtc = t.CreatedAtUtc,
+                    UserId = t.UserId,
+                    UserEmail = t.UserEmail,
+                    UserName = t.UserName
+                }).ToList();
+            }
+            else
+            {
+                var res = await Api.GetAsync<List<TaskResponse>>("/api/tasks");
+                tasks = (res ?? new()).Select(t => new TaskRow
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    Notes = t.Notes,
+                    IsCompleted = t.IsCompleted,
+                    DueAtUtc = t.DueAtUtc,
+                    CreatedAtUtc = t.CreatedAtUtc
+                }).ToList();
+            }
         }
         finally
         {
@@ -177,7 +228,7 @@ else
         }
     }
 
-    private async Task ToggleCompleteAsync(TaskResponse t)
+    private async Task ToggleCompleteAsync(TaskRow t)
     {
         busy = true;
         error = null;

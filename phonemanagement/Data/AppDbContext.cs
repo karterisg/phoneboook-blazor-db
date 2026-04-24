@@ -10,7 +10,7 @@ public sealed class AppDbContext : DbContext // o EF Core DbContext pou antistoi
 
     public DbSet<Contact> Contacts => Set<Contact>(); // DbSet = pinaka Contacts (query + CRUD)
     public DbSet<AppUser> Users => Set<AppUser>();
-    public DbSet<TaskItem> Tasks => Set<TaskItem>();
+    public DbSet<TaskItem> Tasks => Set<TaskItem>(); 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) // mapping rules apo C# entities -> SQL schema
     {

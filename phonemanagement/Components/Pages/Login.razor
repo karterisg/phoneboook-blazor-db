@@ -6,65 +6,58 @@
 @inject ClientAuthState Auth
 @inject NavigationManager Nav
 
-<PageTitle>Σύνδεση</PageTitle>
+<PageTitle>Login</PageTitle>
 
-<div class="auth-shell">
-    <div class="auth-card">
-        <div class="text-center mb-4">
-            <div class="d-inline-flex align-items-center justify-content-center mb-2 rounded-3 text-primary"
-                 style="width:3rem;height:3rem;background:rgba(79,70,229,0.12);">
-                <i class="bi bi-shield-lock fs-3"></i>
-            </div>
-            <h1 class="h4 fw-bold mb-1">Σύνδεση</h1>
-            <p class="text-muted small mb-0">Κατάλογος επαφών — ασφαλής πρόσβαση</p>
-        </div>
+<h3>Login</h3>
 
-        <EditForm Model="model" OnValidSubmit="LoginAsync" FormName="login-form">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-danger">@error</div>
+}
 
-            <div class="mb-3">
-                <label class="form-label">Email</label>
-                <InputText class="form-control" @bind-Value="model.Email" placeholder="you@example.com" />
-                <div class="form-text">Δοκιμαστικό admin: <code>admin@test.com</code> / <code>admin</code></div>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Κωδικός</label>
-                <InputText class="form-control" type="password" @bind-Value="model.Password" />
-            </div>
-
-            @if (!string.IsNullOrWhiteSpace(error))
-            {
-                <div class="alert alert-danger small py-2">@error</div>
-            }
-
-            <button class="btn btn-primary w-100 mb-2" type="submit" disabled="@busy">
-                @if (busy)
-                {
-                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                }
-                Σύνδεση
-            </button>
-            <div class="text-center">
-                <a class="small" href="/register">Δημιουργία λογαριασμού</a>
-            </div>
-        </EditForm>
-    </div>
+<div class="mb-3">
+    <label class="form-label">Email</label>
+    <input class="form-control" @bind="model.Email" />
 </div>
+
+<div class="mb-3">
+    <label class="form-label">Password</label>
+    <input type="password" class="form-control" @bind="model.Password" />
+</div>
+
+
+<div class="mb-3">
+    <label class="form-label">Go to after login</label>
+    <select class="form-select" @bind="redirectTo">
+        <option value="/contacts">Contacts</option>
+        <option value="/tasks">Tasks</option>
+        <option value="/me">My Profile</option>
+    </select>
+</div>
+
+<button class="btn btn-success"
+        disabled="@busy"
+        @onclick="LoginAsync">
+    @(busy ? "Logging in..." : "Login")
+</button>
 
 @code {
     private LoginRequest model = new();
     private bool busy;
     private string? error;
 
+  
+    private string redirectTo = "/contacts";
+
     private async Task LoginAsync()
     {
         busy = true;
         error = null;
+
         try
         {
             var res = await Api.PostAsync<LoginRequest, AuthResponse>("/api/auth/login", model);
+
             if (res is null)
             {
                 error = "Η σύνδεση απέτυχε. Ελέγξτε τα στοιχεία σας.";
@@ -72,7 +65,8 @@
             }
 
             await Auth.SetAccessTokenAsync(res.AccessToken);
-            Nav.NavigateTo("/contacts");
+
+            Nav.NavigateTo(redirectTo);
         }
         finally
         {

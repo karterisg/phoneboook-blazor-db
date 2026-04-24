@@ -9,7 +9,7 @@ public static class DbSeeder // helper class gia arxiko gemisma tis vasis
     public static async Task SeedAsync(AppDbContext db, PasswordHasher<AppUser> hasher) // method pou kanei insert demo data an einai adeia i vasi
     {
         // Ensure admin exists
-        const string adminEmail = "admin@test.com";
+        const string adminEmail = "admin@admin.com";
         var admin = await db.Users.SingleOrDefaultAsync(u => u.Email == adminEmail);
         if (admin is null)
         {
@@ -22,8 +22,8 @@ public static class DbSeeder // helper class gia arxiko gemisma tis vasis
                 Role = "Admin",
                 PasswordHash = "TEMP"
             };
-            // NOTE: requirement wants admin allowed with 5-char password "admin"
-            admin.PasswordHash = hasher.HashPassword(admin, "admin");
+            // NOTE: requirement wants admin allowed with 6-char password "admin"
+            admin.PasswordHash = hasher.HashPassword(admin, "admin1");
             db.Users.Add(admin);
             await db.SaveChangesAsync();
         }
