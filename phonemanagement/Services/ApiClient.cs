@@ -3,6 +3,7 @@ using System.Text.Json;
 
 namespace phonemanagement.Services;
 
+// HTTP kliseis sto idio origin + JWT apo ClientAuthState
 public sealed class ApiClient
 {
     private readonly HttpClient _http;

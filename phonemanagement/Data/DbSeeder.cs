@@ -12,6 +12,7 @@ public static class DbSeeder
         const string adminEmail = "admin@test.com";
         const string legacyAdminEmail = "admin@admin.com";
 
+        // Admin: neo account i metafora apo palio admin@admin.com + sync Contacts.Email
         var admin = await db.Users.SingleOrDefaultAsync(u => u.Email == adminEmail);
 
         if (admin is null)
@@ -70,6 +71,7 @@ public static class DbSeeder
             new { Name = "Θανάσης", Phone = "6955566677", Email = "thanasis@test.com", Gender = "Male", Password = "123456" }
         };
 
+        // Demo xristes (skip an yparxei to email)
         foreach (var s in seededUsers)
         {
             var email = s.Email.Trim().ToLowerInvariant();

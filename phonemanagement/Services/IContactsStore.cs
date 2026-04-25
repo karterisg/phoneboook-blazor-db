@@ -1,14 +1,14 @@
-using PhoneBookApp.Models; // fernei to Contact model
+using PhoneBookApp.Models;
 
-namespace phonemanagement.Services; // namespace gia services layer
+namespace phonemanagement.Services;
 
-public interface IContactsStore // contract pou prepei na ylopoioun ola ta stores (SQL, klt)
+// Abstraction gia CRUD Contacts (ylopoihsh: SqlContactsStore)
+public interface IContactsStore
 {
-    Task<List<Contact>> GetAllAsync(); // pare ola ta contacts
-    Task<Contact?> GetByIdAsync(int id); // pare 1 contact me id (h null)
-    Task<List<Contact>> SearchAsync(string query); // search se contacts (name/phone/email)
-    Task<Contact> AddAsync(Contact contact); // insert neou contact
-    Task<bool> UpdateAsync(Contact contact); // update yparxontos contact
-    Task<bool> DeleteAsync(int id); // delete yparxontos contact
+    Task<List<Contact>> GetAllAsync();
+    Task<Contact?> GetByIdAsync(int id);
+    Task<List<Contact>> SearchAsync(string query);
+    Task<Contact> AddAsync(Contact contact);
+    Task<bool> UpdateAsync(Contact contact);
+    Task<bool> DeleteAsync(int id);
 }
-

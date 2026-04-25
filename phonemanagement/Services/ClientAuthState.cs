@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
 namespace phonemanagement.Services;
 
+// JWT sto session storage + IsAdmin apo claims
 public sealed class ClientAuthState
 {
     private const string StorageKey = "access_token";

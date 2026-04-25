@@ -1,26 +1,26 @@
-using PhoneBookApp.Models; // fernei to Contact model pou xrisimoipoioume se API/UI
-using phonemanagement.Components; // fernei to Blazor App component (UI root)
-using phonemanagement.Data; // fernei AppDbContext + DbSeeder gia SQL/EF
+using PhoneBookApp.Models;
+using phonemanagement.Components;
+using phonemanagement.Data;
 using phonemanagement.Dtos.Auth;
 using phonemanagement.Dtos.Directory;
 using phonemanagement.Dtos.Me;
 using phonemanagement.Dtos.Tasks;
 using phonemanagement.Dtos.Users;
 using phonemanagement.Models;
-using phonemanagement.Services; // fernei IContactsStore + SqlContactsStore (CRUD layer)
+using phonemanagement.Services;
 using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer; 
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Security.Claims;
-using Microsoft.EntityFrameworkCore; // EF Core APIs (UseSqlServer, MigrateAsync, klt)
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
-var builder = WebApplication.CreateBuilder(args); // ftiaxnei ton ASP.NET Core builder (config + DI)
+var builder = WebApplication.CreateBuilder(args);
 
-//Razor Components // energopoiei Blazor Server (Razor Components) me interactivity
+// Blazor Server + interactive UI
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents(); // epitrepei events (@onclick, forms) na doulevoun server-side
+    .AddInteractiveServerComponents();
 
 builder.Services.AddScoped(sp =>
 {
@@ -31,17 +31,17 @@ builder.Services.AddScoped<ProtectedSessionStorage>();
 builder.Services.AddScoped<ClientAuthState>();
 builder.Services.AddScoped<ApiClient>();
 
-//gia Postman // CORS policy gia na mporoun external clients na kanoun requests
+// CORS (dev / Postman)
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
         policy.AllowAnyOrigin()
               .AllowAnyHeader()
-              .AllowAnyMethod()); // allow ola ta methods/headers/origins (dev-friendly)
+              .AllowAnyMethod());
 });
 
-//API testing // swagger/openapi gia dokimes tou API
-builder.Services.AddEndpointsApiExplorer(); 
+// Swagger + JWT sto header
+builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     var scheme = new OpenApiSecurityScheme
@@ -61,7 +61,7 @@ builder.Services.AddSwaggerGen(options =>
         req.Add(new OpenApiSecuritySchemeReference("Bearer", doc, null), new List<string>());
         return req;
     });
-}); // ftiaxnei swagger docs + swagger UI (me JWT)
+});
 
 builder.Services.AddAuthorization(options =>
 {
@@ -94,67 +94,60 @@ builder.Services.AddOptions<JwtOptions>()
         "Jwt:SigningKey must be at least 32 characters.")
     .ValidateOnStart();
 
-builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>(); // DI gia JWT token creation (JwtTokenService implementei ego, IJwtTokenService to interface tou)
-builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.PasswordHasher<phonemanagement.Models.AppUser>>(); // DI gia password hashing (xrisimopoioume to built-in PasswordHasher apo ASP.NET Core Identity, an kai den xrisimopoioume olokliro Identity)
+builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
+builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.PasswordHasher<phonemanagement.Models.AppUser>>();
 
-
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection"); // connection string (LocalDB/LOCALHOST) apo appsettings
-if (!string.IsNullOrWhiteSpace(connectionString)) // an yparxei, doulevoume me SQL Server
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrWhiteSpace(connectionString))
 {
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseSqlServer(connectionString)); // EF Core provider = SQL Server
-    builder.Services.AddScoped<IContactsStore, SqlContactsStore>(); // IContactsStore -> SqlContactsStore (CRUD stin SQL)
-    Console.WriteLine("Using SQL Server store"); // debug log
+        options.UseSqlServer(connectionString));
+    builder.Services.AddScoped<IContactsStore, SqlContactsStore>();
+    Console.WriteLine("Using SQL Server store");
 }
 else
 {
-    throw new InvalidOperationException("Missing ConnectionStrings:DefaultConnection. Configure SQL Server connection string."); // xoris SQL config den trexei
+    throw new InvalidOperationException("Missing ConnectionStrings:DefaultConnection. Configure SQL Server connection string.");
 }
 
-var app = builder.Build(); // xtizei to app (middleware + endpoints)
+var app = builder.Build();
 
-// if all deleted put demo seed again // seed demo data mono an einai adeia i vasi
-if (!string.IsNullOrWhiteSpace(connectionString)) // extra check
+// Schema Contacts (palies vasis), migrations, seed
+if (!string.IsNullOrWhiteSpace(connectionString))
 {
-    using var scope = app.Services.CreateScope(); // ftiaxnei scope gia na parei DbContext ektos request
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>(); // pairnei DbContext
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var hasher = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.PasswordHasher<AppUser>>();
     await ContactSchemaBootstrap.EnsureExtendedColumnsAsync(db);
-    await db.Database.MigrateAsync(); // efarmozei migrations (schema up to date)
-    await DbSeeder.SeedAsync(db, hasher); // vazei arxika data + admin user
+    await db.Database.MigrateAsync();
+    await DbSeeder.SeedAsync(db, hasher);
 }
 
-//Middleware pipeline // seira middlewares pou trexoun se kathe request
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error", createScopeForErrors: true); // production error page
-    app.UseHsts(); // HSTS
+    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    app.UseHsts();
 }
 
-app.UseHttpsRedirection(); // redirect se https (opou yparxei)
+app.UseHttpsRedirection();
 
-app.UseCors(); // energopoiei CORS policy
+app.UseCors();
 
-app.UseAntiforgery(); // energopoiei CSRF protection gia UI
+app.UseAntiforgery();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-//Static files
-app.MapStaticAssets(); // servirei static assets (wwwroot)
+app.MapStaticAssets();
 
-//Swagger UI
-app.UseSwagger(); // expose swagger json
-app.UseSwaggerUI(); // expose swagger UI
+app.UseSwagger();
+app.UseSwaggerUI();
 
-//API endpoints
-var contactsApi = app.MapGroup("/api/contacts"); // base route group gia contacts API
-
+// /api/contacts: pliris lista/search/id mono Admin - o katalogos xristwn einai /api/directory
+var contactsApi = app.MapGroup("/api/contacts");
 
 contactsApi.RequireAuthorization();
 
-
-//GET all — admin only (ο κατάλογος χρηστών για όλους είναι /api/directory)
 contactsApi.MapGet("/", async (IContactsStore store) =>
 {
     var contacts = await store.GetAllAsync();
@@ -173,7 +166,7 @@ contactsApi.MapGet("/search", async (string q, IContactsStore store) =>
     return Results.Ok(results);
 }).RequireAuthorization("AdminOnly");
 
-//CREATE — any authenticated user may add a shared directory card (visible to all in /api/directory)
+// POST: koini epafi (oloi oi logged-in) - emfanizetai sto directory
 contactsApi.MapPost("/", async (Contact body, IContactsStore store) =>
 {
     if (string.IsNullOrWhiteSpace(body.Name))
@@ -194,21 +187,19 @@ contactsApi.MapPost("/", async (Contact body, IContactsStore store) =>
     return Results.Created($"/api/contacts/{created.Id}", created);
 });
 
-//UPDATE
 contactsApi.MapPut("/{id:int}", async (int id, Contact contact, IContactsStore store) =>
 {
-    if (id != contact.Id) // an to route Id den tairiazei me body Id
-        contact.Id = id; // kratame route Id
+    if (id != contact.Id)
+        contact.Id = id;
 
-    var ok = await store.UpdateAsync(contact); // UPDATE stin SQL
-    return ok ? Results.Ok(contact) : Results.NotFound(); // 200 h 404
+    var ok = await store.UpdateAsync(contact);
+    return ok ? Results.Ok(contact) : Results.NotFound();
 }).RequireAuthorization("AdminOnly");
 
-//DELETE
 contactsApi.MapDelete("/{id:int}", async (int id, IContactsStore store) =>
 {
-    var ok = await store.DeleteAsync(id); // DELETE apo SQL
-    return ok ? Results.NoContent() : Results.NotFound(); // 204 h 404
+    var ok = await store.DeleteAsync(id);
+    return ok ? Results.NoContent() : Results.NotFound();
 }).RequireAuthorization("AdminOnly");
 
 static Guid GetUserId(ClaimsPrincipal user)
@@ -251,7 +242,7 @@ authApi.MapPost("/register", async (
 
     db.Users.Add(user);
 
-    // Keep legacy Contacts table in sync (users = contacts)
+    // Neo row Contacts gia xristi (mirroring)
     db.Contacts.Add(new Contact
     {
         Name = user.Name,
@@ -278,7 +269,7 @@ authApi.MapPost("/login", async (
     if (string.IsNullOrWhiteSpace(identifier) || string.IsNullOrWhiteSpace(req.Password))
         return Results.BadRequest(new { message = "Invalid credentials." });
 
-    // Σύνδεση με χρήστη "admin" → admin@test.com (ίδιο με DbSeeder)
+    // Login me "admin" -> admin@test.com (idio me DbSeeder)
     if (string.Equals(identifier, "admin", StringComparison.OrdinalIgnoreCase))
         email = "admin@test.com";
 
@@ -286,7 +277,7 @@ authApi.MapPost("/login", async (
     if (user is null)
         return Results.Unauthorized();
 
-    // Password length rule exception: allow 5 chars only for admin ("admin")
+    // Kwdikos <6 mono gia rolo Admin (px. "admin")
     if (req.Password.Length < 6 && !string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase))
         return Results.BadRequest(new { message = "Invalid credentials." });
 
@@ -325,7 +316,7 @@ meApi.MapPut("/", async (ClaimsPrincipal principal, MeUpdateRequest req, AppDbCo
     if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(phone))
         return Results.BadRequest(new { message = "Invalid fields." });
 
-    // email uniqueness
+    // Monadiko email
     var emailTaken = await db.Users.AnyAsync(u => u.Email == email && u.Id != userId);
     if (emailTaken)
         return Results.Conflict(new { message = "Email already exists." });
@@ -336,7 +327,7 @@ meApi.MapPut("/", async (ClaimsPrincipal principal, MeUpdateRequest req, AppDbCo
     me.Phone = phone;
     me.Gender = gender;
 
-    // Keep legacy Contacts table in sync (best-effort by previous email)
+    // Enimerwsh Contacts otan allazei email (profile / admin)
     var contact = await db.Contacts.SingleOrDefaultAsync(c => c.Email == oldEmail);
     if (contact is null)
     {
@@ -483,6 +474,7 @@ tasksApi.MapDelete("/{id:int}", async (ClaimsPrincipal user, int id, AppDbContex
     return Results.NoContent();
 });
 
+// Tilefonikos katalogos: aloi Users (oxi ego, oxi Admin) + koina Contacts
 var directoryApi = app.MapGroup("/api/directory").RequireAuthorization();
 
 directoryApi.MapGet("/", async (ClaimsPrincipal user, AppDbContext db) =>
@@ -580,7 +572,7 @@ usersApi.MapPost("/", async (
 
     var role = string.IsNullOrWhiteSpace(req.Role) ? "User" : req.Role.Trim();
     if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
-        role = "User"; // do not allow creating admins via this endpoint
+        role = "User"; // den epitrepetai dhmiourgia Admin apo auto to endpoint
 
     var user = new AppUser
     {
@@ -595,7 +587,7 @@ usersApi.MapPost("/", async (
 
     db.Users.Add(user);
 
-    // Keep legacy Contacts table in sync (users = contacts)
+    // Neo row Contacts gia xristi (mirroring)
     db.Contacts.Add(new Contact
     {
         Name = user.Name,
@@ -642,7 +634,7 @@ usersApi.MapPut("/{id:guid}", async (
         user.PasswordHash = hasher.HashPassword(user, req.NewPassword.Trim());
     }
 
-    // Keep legacy Contacts table in sync (best-effort by previous email)
+    // Enimerwsh Contacts otan allazei email (profile / admin)
     var contact = await db.Contacts.SingleOrDefaultAsync(c => c.Email == oldEmail);
     if (contact is null)
     {
@@ -674,7 +666,7 @@ usersApi.MapDelete("/{id:guid}", async (Guid id, AppDbContext db) =>
     if (string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase))
         return Results.BadRequest(new { message = "Admin user cannot be deleted." });
 
-    // Keep legacy Contacts table in sync (best-effort by email)
+    // Diagrafi Contact me idio email me ton xristi
     var contact = await db.Contacts.SingleOrDefaultAsync(c => c.Email == user.Email);
     if (contact is not null)
         db.Contacts.Remove(contact);

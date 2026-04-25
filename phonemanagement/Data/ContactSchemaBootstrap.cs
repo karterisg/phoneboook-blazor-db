@@ -3,9 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace phonemanagement.Data;
 
-/// <summary>
-/// Προσθέτει idempotent τις στήλες που λείπουν στον πίνακα Contacts (ADO.NET μόνο, χωρίς EF queries).
-/// </summary>
+// ADO.NET idempotent: prosthetei stiles Contacts an leipoun (prin Migrate/Seed, xwris EF mapping)
 public static class ContactSchemaBootstrap
 {
     public static async Task EnsureExtendedColumnsAsync(AppDbContext db, CancellationToken cancellationToken = default)

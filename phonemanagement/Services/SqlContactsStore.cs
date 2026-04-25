@@ -1,70 +1,70 @@
-using Microsoft.EntityFrameworkCore; // EF Core APIs (AsNoTracking, ToListAsync, Like, klt)
-using PhoneBookApp.Models; // Contact model
-using phonemanagement.Data; // AppDbContext
+using Microsoft.EntityFrameworkCore;
+using PhoneBookApp.Models;
+using phonemanagement.Data;
 
-namespace phonemanagement.Services; // namespace gia services layer (store)
+namespace phonemanagement.Services;
 
-public sealed class SqlContactsStore : IContactsStore // IContactsStore implementation pou doulevei me SQL/EF
+// CRUD ston pinaka Contacts meso EF (SQL Server)
+public sealed class SqlContactsStore : IContactsStore
 {
-    private readonly AppDbContext _db; // DbContext gia provasi stin SQL vasi
+    private readonly AppDbContext _db;
 
-    public SqlContactsStore(AppDbContext db) // constructor injection tou DbContext
+    public SqlContactsStore(AppDbContext db) => _db = db;
+
+    public Task<List<Contact>> GetAllAsync() =>
+        _db.Contacts.AsNoTracking().OrderBy(c => c.Id).ToListAsync();
+
+    public Task<Contact?> GetByIdAsync(int id) =>
+        _db.Contacts.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
+
+    public Task<List<Contact>> SearchAsync(string query)
     {
-        _db = db; // apothikeuei to DbContext sto field
-    }
+        query = query?.Trim() ?? "";
+        if (query.Length == 0)
+            return GetAllAsync();
 
-    public Task<List<Contact>> GetAllAsync() => // fernei ola ta contacts
-        _db.Contacts.AsNoTracking().OrderBy(c => c.Id).ToListAsync(); // SELECT * ORDER BY Id (read-only)
-
-    public Task<Contact?> GetByIdAsync(int id) => // fernei 1 contact me id
-        _db.Contacts.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id); // SELECT TOP 1 WHERE Id=id
-
-    public Task<List<Contact>> SearchAsync(string query) // search se name/phone/email
-    {
-        query = query?.Trim() ?? ""; // katharizei null + trim
-        if (query.Length == 0) return GetAllAsync(); // an den exei query, epistrefei ola
-
-        return _db.Contacts.AsNoTracking() // read-only query
+        return _db.Contacts.AsNoTracking()
             .Where(c =>
-                (c.Name != null && EF.Functions.Like(c.Name, $"%{query}%")) || // LIKE se Name
-                (c.Phone != null && EF.Functions.Like(c.Phone, $"%{query}%")) || // LIKE se Phone
-                (c.Email != null && EF.Functions.Like(c.Email, $"%{query}%"))) // LIKE se Email
-            .OrderBy(c => c.Id) // stable ordering
-            .ToListAsync(); // EXEC query kai fernei lista
+                (c.Name != null && EF.Functions.Like(c.Name, $"%{query}%")) ||
+                (c.Phone != null && EF.Functions.Like(c.Phone, $"%{query}%")) ||
+                (c.Email != null && EF.Functions.Like(c.Email, $"%{query}%")))
+            .OrderBy(c => c.Id)
+            .ToListAsync();
     }
 
-    public async Task<Contact> AddAsync(Contact contact) // insert neou contact
+    public async Task<Contact> AddAsync(Contact contact)
     {
-        contact.Id = 0; // identity column tha valei to Id (to 0 agnoeitai)
+        contact.Id = 0;
         if (contact.CreatedAtUtc == default)
             contact.CreatedAtUtc = DateTime.UtcNow;
-        _db.Contacts.Add(contact); // mark entity as Added
-        await _db.SaveChangesAsync(); // INSERT stin SQL
-        return contact; // epistrefei to contact me gemato Id
+        _db.Contacts.Add(contact);
+        await _db.SaveChangesAsync();
+        return contact;
     }
 
-    public async Task<bool> UpdateAsync(Contact contact) // update existing contact
+    public async Task<bool> UpdateAsync(Contact contact)
     {
-        var existing = await _db.Contacts.FirstOrDefaultAsync(c => c.Id == contact.Id); // fetch tracked entity
-        if (existing is null) return false; // an den vrethei, den kanei update
+        var existing = await _db.Contacts.FirstOrDefaultAsync(c => c.Id == contact.Id);
+        if (existing is null)
+            return false;
 
-        existing.Name = contact.Name; // update name
-        existing.Phone = contact.Phone; // update phone
-        existing.Email = contact.Email; // update email
-        existing.Gender = contact.Gender; // update gender
+        existing.Name = contact.Name;
+        existing.Phone = contact.Phone;
+        existing.Email = contact.Email;
+        existing.Gender = contact.Gender;
 
-        await _db.SaveChangesAsync(); // UPDATE stin SQL
-        return true; // success
+        await _db.SaveChangesAsync();
+        return true;
     }
 
-    public async Task<bool> DeleteAsync(int id) // delete existing contact
+    public async Task<bool> DeleteAsync(int id)
     {
-        var existing = await _db.Contacts.FirstOrDefaultAsync(c => c.Id == id); // fetch tracked entity
-        if (existing is null) return false; // an den yparxei, den kanei delete
+        var existing = await _db.Contacts.FirstOrDefaultAsync(c => c.Id == id);
+        if (existing is null)
+            return false;
 
-        _db.Contacts.Remove(existing); // mark entity as Deleted
-        await _db.SaveChangesAsync(); // DELETE stin SQL
-        return true; // success
+        _db.Contacts.Remove(existing);
+        await _db.SaveChangesAsync();
+        return true;
     }
 }
-
