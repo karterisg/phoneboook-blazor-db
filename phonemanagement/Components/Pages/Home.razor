@@ -1,6 +1,6 @@
 @page "/"
-@using PhoneBookApp.Models
-@inject phonemanagement.Services.IContactsStore Store
+@using phonemanagement.Dtos.Directory
+@inject phonemanagement.Services.ApiClient Api
 @inject NavigationManager Nav
 @inject phonemanagement.Services.ClientAuthState Auth
 @rendermode InteractiveServer
@@ -9,114 +9,147 @@
 
 <div class="pb-hero mb-4">
     <p class="pb-kicker text-white-50">Καλώς ήρθατε</p>
-    <h1 class="text-white mb-3">Ο κατάλογος επαφών σας</h1>
+    <h1 class="text-white mb-3">Τηλεφωνικός κατάλογος</h1>
 </div>
 
-<div class="row g-3 mb-4">
-    <div class="col-12 col-md-4">
-        <div class="pb-stat">
-            <div class="pb-stat-icon pb-stat-icon--slate"><i class="bi bi-people-fill"></i></div>
-            <div>
-                <div class="h6 text-muted mb-1">Σύνολο επαφών</div>
-                <div class="display-6 mb-0">@totalCount</div>
-            </div>
+@if (!pageReady)
+{
+    <p class="text-muted">Φόρτωση…</p>
+}
+else if (!Auth.IsLoggedIn)
+{
+    <div class="pb-card mb-4" style="max-width: 36rem;">
+        <div class="pb-card-body">
+            <p class="mb-3">Συνδεθείτε για να δείτε τον κοινό κατάλογο (άλλοι χρήστες και κοινές επαφές).</p>
+            <a class="btn btn-primary me-2" href="/login">Σύνδεση</a>
+            <a class="btn btn-outline-secondary" href="/register">Εγγραφή</a>
         </div>
     </div>
-    <div class="col-12 col-md-4">
-        <div class="pb-stat">
-            <div class="pb-stat-icon pb-stat-icon--indigo"><i class="bi bi-gender-male"></i></div>
-            <div>
-                <div class="h6 text-muted mb-1">Male</div>
-                <div class="display-6 mb-0">@maleCount</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-12 col-md-4">
-        <div class="pb-stat">
-            <div class="pb-stat-icon pb-stat-icon--rose"><i class="bi bi-gender-female"></i></div>
-            <div>
-                <div class="h6 text-muted mb-1">Female</div>
-                <div class="display-6 mb-0">@femaleCount</div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-3">
-    <div class="col-12 col-lg-6">
-        <div class="pb-card h-100">
-            <div class="pb-card-body">
-                <h5 class="fw-semibold mb-3">Γρήγορες ενέργειες</h5>
-                <div class="d-flex flex-wrap gap-2 mb-4">
-                    <button type="button" class="btn btn-success" @onclick="GoAdd"><i class="bi bi-person-plus me-1"></i> Νέα επαφή</button>
-                    <button type="button" class="btn btn-primary" @onclick="GoContacts"><i class="bi bi-journal-text me-1"></i> Κατάλογος</button>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="Refresh"><i class="bi bi-arrow-clockwise me-1"></i> Ανανέωση</button>
+}
+else if (loadError is not null)
+{
+    <div class="alert alert-warning">@loadError</div>
+}
+else
+{
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-4">
+            <div class="pb-stat">
+                <div class="pb-stat-icon pb-stat-icon--slate"><i class="bi bi-people-fill"></i></div>
+                <div>
+                    <div class="h6 text-muted mb-1">Εγγραφές καταλόγου</div>
+                    <div class="display-6 mb-0">@totalCount</div>
                 </div>
-                <label class="form-label small text-muted mb-1">Γρήγορη αναζήτηση</label>
-                <div class="input-group">
-                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                    <input class="form-control border-start-0" placeholder="Όνομα, τηλέφωνο ή email…" @bind="quickSearch" @bind:event="oninput" />
-                    <button class="btn btn-dark" @onclick="GoSearch" disabled="@string.IsNullOrWhiteSpace(quickSearch)">Μετάβαση</button>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="pb-stat">
+                <div class="pb-stat-icon pb-stat-icon--indigo"><i class="bi bi-gender-male"></i></div>
+                <div>
+                    <div class="h6 text-muted mb-1">Male</div>
+                    <div class="display-6 mb-0">@maleCount</div>
                 </div>
-                <small class="text-muted d-block mt-2">Η αναζήτηση ανοίγει τον κατάλογο με φίλτρο.</small>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="pb-stat">
+                <div class="pb-stat-icon pb-stat-icon--rose"><i class="bi bi-gender-female"></i></div>
+                <div>
+                    <div class="h6 text-muted mb-1">Female</div>
+                    <div class="display-6 mb-0">@femaleCount</div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="col-12 col-lg-6">
-        <div class="pb-card h-100">
-            <div class="pb-card-body">
-                <h5 class="fw-semibold mb-3">Πρόσφατες επαφές</h5>
-
-                @if (loading)
-                {
-                    <p class="text-muted mb-0">Φόρτωση…</p>
-                }
-                else if (!recent.Any())
-                {
-                    <div class="pb-empty">
-                        <i class="bi bi-inbox"></i>
-                        <p class="mb-0">Δεν υπάρχουν επαφές. Προσθέστε την πρώτη σας.</p>
+    <div class="row g-3">
+        <div class="col-12 col-lg-6">
+            <div class="pb-card h-100">
+                <div class="pb-card-body">
+                    <h5 class="fw-semibold mb-3">Γρήγορες ενέργειες</h5>
+                    <div class="d-flex flex-wrap gap-2 mb-4">
+                        <button type="button" class="btn btn-success" @onclick="GoAdd"><i class="bi bi-journal-plus me-1"></i> Νέα κοινή επαφή</button>
+                        <button type="button" class="btn btn-primary" @onclick="GoContacts"><i class="bi bi-journal-text me-1"></i> Κατάλογος</button>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="Refresh"><i class="bi bi-arrow-clockwise me-1"></i> Ανανέωση</button>
                     </div>
-                }
-                else
-                {
-                    <ul class="list-group list-group-flush rounded-3 border">
-                        @foreach (var c in recent)
-                        {
-                            <li class="list-group-item d-flex justify-content-between align-items-center py-3">
-                                <div class="d-flex align-items-center gap-3 min-w-0">
-                                    <div class="pb-avatar">@GetInitial(c.Name)</div>
-                                    <div class="min-w-0">
-                                        <div class="fw-semibold text-truncate">@c.Name</div>
-                                        <div class="small text-muted text-truncate">@c.Phone @if (!string.IsNullOrWhiteSpace(c.Email)) { <span>· @c.Email</span> }</div>
+                    <label class="form-label small text-muted mb-1">Γρήγορη αναζήτηση</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                        <input class="form-control border-start-0" placeholder="Όνομα, τηλέφωνο ή email…" @bind="quickSearch" @bind:event="oninput" />
+                        <button class="btn btn-dark" @onclick="GoSearch" disabled="@string.IsNullOrWhiteSpace(quickSearch)">Μετάβαση</button>
+                    </div>
+                    <small class="text-muted d-block mt-2">Ανοίγει τον κατάλογο με φίλτρο.</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="pb-card h-100">
+                <div class="pb-card-body">
+                    <h5 class="fw-semibold mb-3">Πρόσφατες στον κατάλογο</h5>
+
+                    @if (loading)
+                    {
+                        <p class="text-muted mb-0">Φόρτωση…</p>
+                    }
+                    else if (!recent.Any())
+                    {
+                        <div class="pb-empty">
+                            <i class="bi bi-inbox"></i>
+                            <p class="mb-0">Δεν υπάρχουν ακόμα εγγραφές που να σου εμφανίζονται εδώ.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <ul class="list-group list-group-flush rounded-3 border">
+                            @foreach (var c in recent)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                    <div class="d-flex align-items-center gap-3 min-w-0">
+                                        <div class="pb-avatar">@GetInitial(c.Name)</div>
+                                        <div class="min-w-0">
+                                            <div class="fw-semibold text-truncate">@c.Name</div>
+                                            <div class="small text-muted text-truncate">@c.Phone @if (!string.IsNullOrWhiteSpace(c.Email)) { <span>· @c.Email</span> }</div>
+                                        </div>
                                     </div>
-                                </div>
-                                <button type="button" class="btn btn-sm btn-outline-primary flex-shrink-0" @onclick="() => GoView(c.Id)">Προβολή</button>
-                            </li>
-                        }
-                    </ul>
-                }
+                                    <button type="button" class="btn btn-sm btn-outline-primary flex-shrink-0" @onclick="() => GoView(c)">Προβολή</button>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
             </div>
         </div>
     </div>
-</div>
+}
 
 @code
 {
+    private bool pageReady;
     private bool loading = true;
+    private string? loadError;
     private string quickSearch = "";
 
     private int totalCount;
     private int maleCount;
     private int femaleCount;
 
-    private List<Contact> recent = new();
+    private List<DirectoryContactResponse> directory = new();
+    private List<DirectoryContactResponse> recent = new();
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (!firstRender)
+            return;
+
         await Auth.LoadAsync();
-        await LoadAsync();
+        if (Auth.IsLoggedIn)
+            await LoadDirectoryAsync();
+        else
+            loading = false;
+
+        pageReady = true;
+        await InvokeAsync(StateHasChanged);
     }
 
     private static string GetInitial(string? name)
@@ -126,43 +159,40 @@
         return t.Length == 0 ? "?" : char.ToUpper(t[0]).ToString();
     }
 
-    private async Task LoadAsync()
+    private async Task LoadDirectoryAsync()
     {
         loading = true;
-        var all = await Store.GetAllAsync();
-
-        totalCount = all.Count;
-        maleCount = all.Count(c => string.Equals(c.Gender, "Male", StringComparison.OrdinalIgnoreCase));
-        femaleCount = all.Count(c => string.Equals(c.Gender, "Female", StringComparison.OrdinalIgnoreCase));
-
-        recent = all.OrderByDescending(c => c.Id).Take(5).ToList();
-        loading = false;
-    }
-
-    private void GoContacts()
-    {
-        Nav.NavigateTo(Auth.IsLoggedIn ? "/contacts" : "/login");
-    }
-
-    private void GoAdd()
-    {
-        if (!Auth.IsLoggedIn)
+        loadError = null;
+        try
         {
-            Nav.NavigateTo("/login");
-            return;
+            var res = await Api.GetAsync<List<DirectoryContactResponse>>("/api/directory");
+            directory = res ?? new();
+            totalCount = directory.Count;
+            maleCount = directory.Count(c => string.Equals(c.Gender, "Male", StringComparison.OrdinalIgnoreCase));
+            femaleCount = directory.Count(c => string.Equals(c.Gender, "Female", StringComparison.OrdinalIgnoreCase));
+            recent = directory.OrderByDescending(c => c.CreatedAtUtc).Take(5).ToList();
         }
-        if (!Auth.IsAdmin)
+        catch
         {
-            Nav.NavigateTo("/contacts");
-            return;
+            loadError = "Δεν ήταν δυνατή η φόρτωση του καταλόγου.";
+            directory = new();
+            recent = new();
+            totalCount = maleCount = femaleCount = 0;
         }
-
-        Nav.NavigateTo("/add-contact");
+        finally
+        {
+            loading = false;
+        }
     }
 
-    private void GoView(int id)
+    private void GoContacts() => Nav.NavigateTo("/contacts");
+
+    private void GoAdd() => Nav.NavigateTo("/add-contact");
+
+    private void GoView(DirectoryContactResponse c)
     {
-        Nav.NavigateTo(Auth.IsLoggedIn ? $"/view-contact/{id}" : "/login");
+        var href = c.SharedContactId is int sid ? $"/view-contact/{sid}" : $"/contact/{c.Id}";
+        Nav.NavigateTo(href);
     }
 
     private void GoSearch()
@@ -171,5 +201,11 @@
         Nav.NavigateTo($"/contacts?search={q}");
     }
 
-    private async Task Refresh() => await LoadAsync();
+    private async Task Refresh()
+    {
+        if (!Auth.IsLoggedIn)
+            return;
+        await LoadDirectoryAsync();
+        await InvokeAsync(StateHasChanged);
+    }
 }

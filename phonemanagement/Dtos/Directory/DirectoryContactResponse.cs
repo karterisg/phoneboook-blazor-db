@@ -5,5 +5,6 @@ public sealed record DirectoryContactResponse(
     string Name,
     string Phone,
     string Email,
-    string Gender);
-
+    string Gender,
+    int? SharedContactId,
+    DateTime CreatedAtUtc);

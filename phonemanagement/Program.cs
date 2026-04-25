@@ -119,6 +119,7 @@ if (!string.IsNullOrWhiteSpace(connectionString)) // extra check
     using var scope = app.Services.CreateScope(); // ftiaxnei scope gia na parei DbContext ektos request
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>(); // pairnei DbContext
     var hasher = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.PasswordHasher<AppUser>>();
+    await ContactSchemaBootstrap.EnsureExtendedColumnsAsync(db);
     await db.Database.MigrateAsync(); // efarmozei migrations (schema up to date)
     await DbSeeder.SeedAsync(db, hasher); // vazei arxika data + admin user
 }
@@ -153,33 +154,45 @@ var contactsApi = app.MapGroup("/api/contacts"); // base route group gia contact
 contactsApi.RequireAuthorization();
 
 
-//GET all
+//GET all — admin only (ο κατάλογος χρηστών για όλους είναι /api/directory)
 contactsApi.MapGet("/", async (IContactsStore store) =>
 {
-    var contacts = await store.GetAllAsync(); // SELECT ola ta contacts apo SQL
-    return Results.Ok(contacts); // 200 + JSON
-});
+    var contacts = await store.GetAllAsync();
+    return Results.Ok(contacts);
+}).RequireAuthorization("AdminOnly");
 
-//GET by id
 contactsApi.MapGet("/{id:int}", async (int id, IContactsStore store) =>
 {
-    var contact = await store.GetByIdAsync(id); // SELECT 1 me Id
-    return contact is null ? Results.NotFound() : Results.Ok(contact); // 404 an den vrethei, alliws 200
-});
+    var contact = await store.GetByIdAsync(id);
+    return contact is null ? Results.NotFound() : Results.Ok(contact);
+}).RequireAuthorization("AdminOnly");
 
-//SEARCH
 contactsApi.MapGet("/search", async (string q, IContactsStore store) =>
 {
-    var results = await store.SearchAsync(q); // search se Name/Phone/Email
-    return Results.Ok(results); // 200 + lista
-});
-
-//CREATE
-contactsApi.MapPost("/", async (Contact contact, IContactsStore store) =>
-{
-    var created = await store.AddAsync(contact); // INSERT stin SQL (Id identity)
-    return Results.Created($"/api/contacts/{created.Id}", created); // 201 Created
+    var results = await store.SearchAsync(q);
+    return Results.Ok(results);
 }).RequireAuthorization("AdminOnly");
+
+//CREATE — any authenticated user may add a shared directory card (visible to all in /api/directory)
+contactsApi.MapPost("/", async (Contact body, IContactsStore store) =>
+{
+    if (string.IsNullOrWhiteSpace(body.Name))
+        return Results.BadRequest(new { message = "Name is required." });
+
+    var contact = new Contact
+    {
+        Name = body.Name.Trim(),
+        Phone = (body.Phone ?? "").Trim(),
+        Email = (body.Email ?? "").Trim(),
+        Gender = string.IsNullOrWhiteSpace(body.Gender) ? "Male" : body.Gender.Trim(),
+        IsUserContribution = true,
+        DirectoryListingId = Guid.NewGuid(),
+        CreatedAtUtc = DateTime.UtcNow
+    };
+
+    var created = await store.AddAsync(contact);
+    return Results.Created($"/api/contacts/{created.Id}", created);
+});
 
 //UPDATE
 contactsApi.MapPut("/{id:int}", async (int id, Contact contact, IContactsStore store) =>
@@ -244,7 +257,8 @@ authApi.MapPost("/register", async (
         Name = user.Name,
         Phone = user.Phone,
         Email = user.Email,
-        Gender = user.Gender
+        Gender = user.Gender,
+        CreatedAtUtc = DateTime.UtcNow
     });
 
     await db.SaveChangesAsync();
@@ -264,7 +278,7 @@ authApi.MapPost("/login", async (
     if (string.IsNullOrWhiteSpace(identifier) || string.IsNullOrWhiteSpace(req.Password))
         return Results.BadRequest(new { message = "Invalid credentials." });
 
-    // Allow admin to login with "admin" as identifier
+    // Σύνδεση με χρήστη "admin" → admin@test.com (ίδιο με DbSeeder)
     if (string.Equals(identifier, "admin", StringComparison.OrdinalIgnoreCase))
         email = "admin@test.com";
 
@@ -331,7 +345,8 @@ meApi.MapPut("/", async (ClaimsPrincipal principal, MeUpdateRequest req, AppDbCo
             Name = me.Name,
             Phone = me.Phone,
             Email = me.Email,
-            Gender = me.Gender
+            Gender = me.Gender,
+            CreatedAtUtc = DateTime.UtcNow
         });
     }
     else
@@ -432,8 +447,12 @@ tasksApi.MapPost("/", async (ClaimsPrincipal user, TaskCreateRequest req, AppDbC
 tasksApi.MapPut("/{id:int}", async (ClaimsPrincipal user, int id, TaskUpdateRequest req, AppDbContext db) =>
 {
     var userId = GetUserId(user);
-    var task = await db.Tasks.SingleOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+    var isAdmin = user.IsInRole("Admin");
+    var task = await db.Tasks.SingleOrDefaultAsync(t => t.Id == id);
     if (task is null)
+        return Results.NotFound();
+
+    if (!isAdmin && task.UserId != userId)
         return Results.NotFound();
 
     if (string.IsNullOrWhiteSpace(req.Title))
@@ -451,8 +470,12 @@ tasksApi.MapPut("/{id:int}", async (ClaimsPrincipal user, int id, TaskUpdateRequ
 tasksApi.MapDelete("/{id:int}", async (ClaimsPrincipal user, int id, AppDbContext db) =>
 {
     var userId = GetUserId(user);
-    var task = await db.Tasks.SingleOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+    var isAdmin = user.IsInRole("Admin");
+    var task = await db.Tasks.SingleOrDefaultAsync(t => t.Id == id);
     if (task is null)
+        return Results.NotFound();
+
+    if (!isAdmin && task.UserId != userId)
         return Results.NotFound();
 
     db.Tasks.Remove(task);
@@ -465,12 +488,27 @@ var directoryApi = app.MapGroup("/api/directory").RequireAuthorization();
 directoryApi.MapGet("/", async (ClaimsPrincipal user, AppDbContext db) =>
 {
     var currentUserId = GetUserId(user);
-    var rows = await db.Users.AsNoTracking()
+    var userRows = await db.Users.AsNoTracking()
         .Where(u => u.Id != currentUserId)
         .Where(u => (u.Role ?? "").ToUpper() != "ADMIN")
-        .OrderBy(u => u.Name)
-        .Select(u => new DirectoryContactResponse(u.Id, u.Name, u.Phone, u.Email, u.Gender))
+        .Select(u => new DirectoryContactResponse(u.Id, u.Name, u.Phone, u.Email, u.Gender, null, u.CreatedAtUtc))
         .ToListAsync();
+
+    var sharedRows = await db.Contacts.AsNoTracking()
+        .Where(c => c.IsUserContribution && c.DirectoryListingId != null)
+        .Select(c => new DirectoryContactResponse(
+            c.DirectoryListingId!.Value,
+            c.Name ?? "",
+            c.Phone ?? "",
+            c.Email ?? "",
+            c.Gender,
+            c.Id,
+            c.CreatedAtUtc))
+        .ToListAsync();
+
+    var rows = userRows.Concat(sharedRows)
+        .OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase)
+        .ToList();
 
     return Results.Ok(rows);
 });
@@ -479,10 +517,25 @@ directoryApi.MapGet("/{id:guid}", async (Guid id, AppDbContext db) =>
 {
     var u = await db.Users.AsNoTracking()
         .Where(x => x.Id == id && (x.Role ?? "").ToUpper() != "ADMIN")
-        .Select(x => new DirectoryContactResponse(x.Id, x.Name, x.Phone, x.Email, x.Gender))
+        .Select(x => new DirectoryContactResponse(x.Id, x.Name, x.Phone, x.Email, x.Gender, null, x.CreatedAtUtc))
         .SingleOrDefaultAsync();
 
-    return u is null ? Results.NotFound() : Results.Ok(u);
+    if (u is not null)
+        return Results.Ok(u);
+
+    var c = await db.Contacts.AsNoTracking()
+        .Where(x => x.DirectoryListingId == id && x.IsUserContribution)
+        .Select(x => new DirectoryContactResponse(
+            x.DirectoryListingId!.Value,
+            x.Name ?? "",
+            x.Phone ?? "",
+            x.Email ?? "",
+            x.Gender,
+            x.Id,
+            x.CreatedAtUtc))
+        .SingleOrDefaultAsync();
+
+    return c is null ? Results.NotFound() : Results.Ok(c);
 });
 
 var usersApi = app.MapGroup("/api/users").RequireAuthorization("AdminOnly");
@@ -506,7 +559,7 @@ usersApi.MapGet("/{id:guid}", async (Guid id, AppDbContext db) =>
 {
     var u = await db.Users.AsNoTracking()
         .Where(x => x.Id == id)
-        .Select(x => new DirectoryContactResponse(x.Id, x.Name, x.Phone, x.Email, x.Gender))
+        .Select(x => new DirectoryContactResponse(x.Id, x.Name, x.Phone, x.Email, x.Gender, null, x.CreatedAtUtc))
         .SingleOrDefaultAsync();
 
     return u is null ? Results.NotFound() : Results.Ok(u);
@@ -548,12 +601,13 @@ usersApi.MapPost("/", async (
         Name = user.Name,
         Phone = user.Phone,
         Email = user.Email,
-        Gender = user.Gender
+        Gender = user.Gender,
+        CreatedAtUtc = DateTime.UtcNow
     });
 
     await db.SaveChangesAsync();
 
-    return Results.Ok(new DirectoryContactResponse(user.Id, user.Name, user.Phone, user.Email, user.Gender));
+    return Results.Ok(new DirectoryContactResponse(user.Id, user.Name, user.Phone, user.Email, user.Gender, null, user.CreatedAtUtc));
 });
 
 usersApi.MapPut("/{id:guid}", async (
@@ -597,7 +651,8 @@ usersApi.MapPut("/{id:guid}", async (
             Name = user.Name,
             Phone = user.Phone,
             Email = user.Email,
-            Gender = user.Gender
+            Gender = user.Gender,
+            CreatedAtUtc = DateTime.UtcNow
         });
     }
     else
@@ -609,7 +664,7 @@ usersApi.MapPut("/{id:guid}", async (
     }
 
     await db.SaveChangesAsync();
-    return Results.Ok(new DirectoryContactResponse(user.Id, user.Name, user.Phone, user.Email, user.Gender));
+    return Results.Ok(new DirectoryContactResponse(user.Id, user.Name, user.Phone, user.Email, user.Gender, null, user.CreatedAtUtc));
 });
 
 usersApi.MapDelete("/{id:guid}", async (Guid id, AppDbContext db) =>
@@ -629,12 +684,7 @@ usersApi.MapDelete("/{id:guid}", async (Guid id, AppDbContext db) =>
     return Results.NoContent();
 });
 
-//Blazor app
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode(); // energopoiei interactive render mode gia components
+    .AddInteractiveServerRenderMode();
 
-
-app.MapRazorComponents<App>() // deyteri mapping tou App
-    .AddAdditionalAssemblies(); // den exei arguments, opote einai praktika peritto
-
-app.Run(); // ksekinaei ton server kai akouei sta configured ports
+app.Run();

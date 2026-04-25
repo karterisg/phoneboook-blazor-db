@@ -1,7 +1,7 @@
 @page "/add-contact"
 @using PhoneBookApp.Models
 @inject NavigationManager Nav
-@inject phonemanagement.Services.IContactsStore Store
+@inject phonemanagement.Services.ApiClient Api
 @inject phonemanagement.Services.ClientAuthState Auth
 @rendermode InteractiveServer
 
@@ -15,12 +15,16 @@
 
 <div class="pb-page-header">
     <p class="pb-kicker">Νέα</p>
-    <h1>Προσθήκη επαφής</h1>
-    <p class="text-muted mb-0">Συμπληρώστε τα πεδία· τα δεδομένα αποθηκεύονται στη βάση.</p>
+    <h1>Κοινή επαφή καταλόγου</h1>
+    <p class="text-muted mb-0">Η εγγραφή εμφανίζεται στον κατάλογο για όλους τους συνδεδεμένους χρήστες.</p>
 </div>
 
 <div class="pb-card pb-form-card">
     <div class="pb-card-body">
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="alert alert-danger">@error</div>
+        }
         <EditForm Model="contact" OnValidSubmit="Save">
             <div class="mb-3">
                 <label class="form-label">Όνομα</label>
@@ -42,7 +46,7 @@
                 </InputSelect>
             </div>
             <div class="d-flex flex-wrap gap-2">
-                <button class="btn btn-primary" type="submit">
+                <button class="btn btn-primary" type="submit" disabled="@busy">
                     <i class="bi bi-check-lg me-1" aria-hidden="true"></i>Αποθήκευση
                 </button>
                 <button type="button" class="btn btn-outline-secondary" @onclick="GoBack">Άκυρο</button>
@@ -54,6 +58,8 @@
 @code {
     Contact contact = new Contact { Gender = "Male" };
     private bool authReady;
+    private bool busy;
+    private string? error;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -66,11 +72,6 @@
             Nav.NavigateTo("/login");
             return;
         }
-        if (!Auth.IsAdmin)
-        {
-            Nav.NavigateTo("/contacts");
-            return;
-        }
 
         authReady = true;
         await InvokeAsync(StateHasChanged);
@@ -78,11 +79,23 @@
 
     async Task Save()
     {
-        if (!Auth.IsAdmin)
-            return;
+        busy = true;
+        error = null;
+        try
+        {
+            var created = await Api.PostAsync<Contact, Contact>("/api/contacts", contact);
+            if (created is null)
+            {
+                error = string.IsNullOrWhiteSpace(Api.LastError) ? "Η αποθήκευση απέτυχε." : Api.LastError;
+                return;
+            }
 
-        await Store.AddAsync(contact);
-        Nav.NavigateTo("/contacts");
+            Nav.NavigateTo("/contacts");
+        }
+        finally
+        {
+            busy = false;
+        }
     }
 
     void GoBack() => Nav.NavigateTo("/contacts");

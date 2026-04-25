@@ -1,31 +1,49 @@
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore; // EF Core APIs (AnyAsync)
+using Microsoft.EntityFrameworkCore;
+using PhoneBookApp.Models;
 using phonemanagement.Models;
 
-namespace phonemanagement.Data; // namespace gia data layer (seed)
+namespace phonemanagement.Data;
 
-public static class DbSeeder // helper class gia arxiko gemisma tis vasis
+public static class DbSeeder
 {
-    public static async Task SeedAsync(AppDbContext db, PasswordHasher<AppUser> hasher) // method pou kanei insert demo data an einai adeia i vasi
+    public static async Task SeedAsync(AppDbContext db, PasswordHasher<AppUser> hasher)
     {
-        // Ensure admin exists
-        const string adminEmail = "admin@admin.com";
+        const string adminEmail = "admin@test.com";
+        const string legacyAdminEmail = "admin@admin.com";
+
         var admin = await db.Users.SingleOrDefaultAsync(u => u.Email == adminEmail);
+
         if (admin is null)
         {
-            admin = new AppUser
+            var legacy = await db.Users.SingleOrDefaultAsync(u => u.Email == legacyAdminEmail);
+            if (legacy is not null)
             {
-                Email = adminEmail,
-                Name = "Admin",
-                Phone = "0000000000",
-                Gender = "Male",
-                Role = "Admin",
-                PasswordHash = "TEMP"
-            };
-            // NOTE: requirement wants admin allowed with 6-char password "admin"
-            admin.PasswordHash = hasher.HashPassword(admin, "admin1");
-            db.Users.Add(admin);
-            await db.SaveChangesAsync();
+                var contact = await db.Contacts.SingleOrDefaultAsync(c => c.Email == legacyAdminEmail);
+                if (contact is not null)
+                    contact.Email = adminEmail;
+
+                legacy.Email = adminEmail;
+                legacy.Role = "Admin";
+                legacy.PasswordHash = hasher.HashPassword(legacy, "admin");
+                await db.SaveChangesAsync();
+                admin = legacy;
+            }
+            else
+            {
+                admin = new AppUser
+                {
+                    Email = adminEmail,
+                    Name = "Admin",
+                    Phone = "0000000000",
+                    Gender = "Male",
+                    Role = "Admin",
+                    PasswordHash = "TEMP"
+                };
+                admin.PasswordHash = hasher.HashPassword(admin, "admin");
+                db.Users.Add(admin);
+                await db.SaveChangesAsync();
+            }
         }
         else if (!string.Equals(admin.Role, "Admin", StringComparison.OrdinalIgnoreCase))
         {
@@ -33,7 +51,6 @@ public static class DbSeeder // helper class gia arxiko gemisma tis vasis
             await db.SaveChangesAsync();
         }
 
-        // Seed directory users (these become the shared contacts list)
         var seededUsers = new[]
         {
             new { Name = "Γιώργος", Phone = "6912345678", Email = "giorgos@test.com", Gender = "Male", Password = "123456" },
@@ -75,4 +92,3 @@ public static class DbSeeder // helper class gia arxiko gemisma tis vasis
         await db.SaveChangesAsync();
     }
 }
-

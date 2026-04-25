@@ -22,6 +22,11 @@ public sealed class AppDbContext : DbContext // o EF Core DbContext pou antistoi
         contact.Property(c => c.Phone).HasMaxLength(50); // nvarchar(50)
         contact.Property(c => c.Email).HasMaxLength(200); // nvarchar(200)
         contact.Property(c => c.Gender).HasMaxLength(20); // nvarchar(20)  
+        contact.Property(c => c.IsUserContribution).IsRequired();
+        contact.HasIndex(c => c.DirectoryListingId)
+            .IsUnique()
+            .HasFilter("[DirectoryListingId] IS NOT NULL");
+        contact.Property(c => c.CreatedAtUtc).IsRequired();
 
 
         var user = modelBuilder.Entity<AppUser>();

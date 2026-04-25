@@ -35,9 +35,10 @@
         <button type="button" class="btn btn-outline-secondary" @onclick="ClearSearch">Καθαρισμός</button>
         <button type="button" class="btn btn-primary" @onclick="Refresh"><i class="bi bi-arrow-clockwise me-1"></i>Ανανέωση</button>
     </div>
+    <a class="btn btn-success" href="/add-contact"><i class="bi bi-journal-plus me-1"></i>Νέα κοινή επαφή</a>
     @if (canEdit)
     {
-        <a class="btn btn-success" href="/add-user"><i class="bi bi-person-plus me-1"></i>Νέα εγγραφή</a>
+        <a class="btn btn-outline-success" href="/add-user"><i class="bi bi-person-plus me-1"></i>Νέος χρήστης</a>
         <a class="btn btn-outline-dark" href="/users"><i class="bi bi-people me-1"></i>Χρήστες</a>
     }
 </div>
@@ -82,11 +83,19 @@
                         <span class="pb-gender-pill @GenderPillClass(contact.Gender)">@contact.Gender</span>
                     </td>
                     <td class="text-end pe-3">
-                        <a class="btn btn-sm btn-outline-primary" href="@($"/contact/{contact.Id}")">Προβολή</a>
+                        <a class="btn btn-sm btn-outline-primary" href="@ViewHref(contact)">Προβολή</a>
                         @if (canEdit)
                         {
-                            <a class="btn btn-sm btn-outline-secondary" href="@($"/edit-user/{contact.Id}")">Επεξεργασία</a>
-                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteUserAsync(contact.Id)" disabled="@busy">Διαγραφή</button>
+                            @if (contact.SharedContactId is int scid)
+                            {
+                                <a class="btn btn-sm btn-outline-secondary" href="@($"/edit-contact/{scid}")">Επεξεργασία</a>
+                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteSharedContactAsync(scid)" disabled="@busy">Διαγραφή</button>
+                            }
+                            else
+                            {
+                                <a class="btn btn-sm btn-outline-secondary" href="@($"/edit-user/{contact.Id}")">Επεξεργασία</a>
+                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteUserAsync(contact.Id)" disabled="@busy">Διαγραφή</button>
+                            }
                         }
                     </td>
                 </tr>
@@ -133,6 +142,9 @@ else
 
     private static string GenderPillClass(string? gender) =>
         string.Equals(gender, "Female", StringComparison.OrdinalIgnoreCase) ? "pb-gender-pill--f" : "pb-gender-pill--m";
+
+    private static string ViewHref(DirectoryContactResponse c) =>
+        c.SharedContactId is not null ? $"/view-contact/{c.SharedContactId}" : $"/contact/{c.Id}";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -253,6 +265,21 @@ else
         try
         {
             await Api.DeleteAsync($"/api/users/{id}");
+            await Refresh();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task DeleteSharedContactAsync(int id)
+    {
+        if (!canEdit) return;
+        busy = true;
+        try
+        {
+            await Api.DeleteAsync($"/api/contacts/{id}");
             await Refresh();
         }
         finally

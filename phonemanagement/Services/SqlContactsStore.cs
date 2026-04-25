@@ -36,6 +36,8 @@ public sealed class SqlContactsStore : IContactsStore // IContactsStore implemen
     public async Task<Contact> AddAsync(Contact contact) // insert neou contact
     {
         contact.Id = 0; // identity column tha valei to Id (to 0 agnoeitai)
+        if (contact.CreatedAtUtc == default)
+            contact.CreatedAtUtc = DateTime.UtcNow;
         _db.Contacts.Add(contact); // mark entity as Added
         await _db.SaveChangesAsync(); // INSERT stin SQL
         return contact; // epistrefei to contact me gemato Id

@@ -112,7 +112,8 @@ public sealed class FirestoreContactsStore : IContactsStore
             Email = dict.TryGetValue("email", out var email) ? email as string : null,
             Gender = dict.TryGetValue("gender", out var gender) && gender is string g && !string.IsNullOrWhiteSpace(g)
                 ? g
-                : "Male"
+                : "Male",
+            CreatedAtUtc = DateTime.UtcNow
         };
     }
 }

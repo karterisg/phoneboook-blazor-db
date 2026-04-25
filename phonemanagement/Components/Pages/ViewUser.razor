@@ -38,9 +38,16 @@ else
 
     <div class="d-flex gap-2">
         <a class="btn btn-outline-secondary" href="/contacts">Back</a>
-        @if (Auth.IsAdmin)
+        @if (Auth.IsAdmin && contact is not null)
         {
-            <a class="btn btn-warning" href="@($"/edit-user/{Id}")">Edit</a>
+            @if (contact.SharedContactId is int scid)
+            {
+                <a class="btn btn-warning" href="@($"/edit-contact/{scid}")">Edit</a>
+            }
+            else
+            {
+                <a class="btn btn-warning" href="@($"/edit-user/{Id}")">Edit</a>
+            }
         }
     </div>
 }

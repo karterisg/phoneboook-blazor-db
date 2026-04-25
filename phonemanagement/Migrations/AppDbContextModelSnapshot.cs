@@ -30,6 +30,9 @@ namespace phonemanagement.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<Guid?>("DirectoryListingId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Email")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -39,6 +42,9 @@ namespace phonemanagement.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<bool>("IsUserContribution")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -47,7 +53,14 @@ namespace phonemanagement.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("DirectoryListingId")
+                        .IsUnique()
+                        .HasFilter("[DirectoryListingId] IS NOT NULL");
 
                     b.ToTable("Contacts", (string)null);
                 });
